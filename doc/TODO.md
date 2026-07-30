@@ -18,12 +18,13 @@
 
 ## Remaining
 
-- [ ] Perbaiki unit test token auth yang gagal karena token fixed-time sudah expired saat diverifikasi.
-- [ ] Jalankan ulang `go test ./...` sampai semua package hijau.
-- [ ] Pastikan auth/session MVP lengkap: register, login, refresh, logout, `GET /auth/me`, dan compatibility alias `/api`.
-- [ ] Rapikan response envelope, pagination, dan error shape agar konsisten dengan shared API contract.
+- [x] Perbaiki unit test token auth yang gagal karena token fixed-time sudah expired saat diverifikasi.
+- [x] Jalankan ulang `go test ./...` sampai semua package hijau.
+- [ ] Implementasikan connection supabase
 - [ ] Tambahkan migration SQL versioned dengan `golang-migrate` berdasarkan target schema shared contract.
 - [ ] Refactor PostgreSQL store dari `pgx` ke `sqlx` sesuai keputusan stack Go.
+- [ ] Pastikan auth/session MVP lengkap: register, login, refresh, logout, `GET /auth/me`, dan compatibility alias `/api`.
+- [ ] Rapikan response envelope, pagination, dan error shape agar konsisten dengan shared API contract.
 - [ ] Jalankan backend Go dengan PostgreSQL lokal/container, apply migration, lalu validasi smoke test endpoint MVP.
 - [ ] Tambahkan integration test database untuk repository dan workflow utama.
 - [ ] Perkuat resource-scoped authorization untuk project, task, comment, attachment, team, dan user/admin flow.
