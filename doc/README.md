@@ -6,3 +6,7 @@ Source of truth untuk dokumen lintas aplikasi ada di backend:
 - PRD: `../project-manager-be/doc/prd.md`
 
 Jika ada perbedaan kontrak API, PRD, atau yang lain, ikuti dokumen backend.
+
+Dokumen spesifik implementasi Go:
+
+- Database stack: `database.md`
