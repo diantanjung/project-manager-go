@@ -101,7 +101,7 @@ func (m TokenManager) verify(tokenString string, tokenType string, secret []byte
 			return nil, fmt.Errorf("unexpected signing method %v", token.Header["alg"])
 		}
 		return secret, nil
-	})
+	}, jwt.WithTimeFunc(m.now))
 	if err != nil {
 		return Claims{}, domain.ErrInvalidRefresh
 	}
