@@ -20,8 +20,8 @@
 
 - [x] Perbaiki unit test token auth yang gagal karena token fixed-time sudah expired saat diverifikasi.
 - [x] Jalankan ulang `go test ./...` sampai semua package hijau.
-- [ ] Implementasikan connection supabase
-- [ ] Tambahkan migration SQL versioned dengan `golang-migrate` berdasarkan target schema shared contract.
+- [x] Implementasikan connection supabase
+- [x] Tambahkan migration SQL versioned dengan `golang-migrate` berdasarkan target schema shared contract.
 - [ ] Refactor PostgreSQL store dari `pgx` ke `sqlx` sesuai keputusan stack Go.
 - [ ] Pastikan auth/session MVP lengkap: register, login, refresh, logout, `GET /auth/me`, dan compatibility alias `/api`.
 - [ ] Rapikan response envelope, pagination, dan error shape agar konsisten dengan shared API contract.

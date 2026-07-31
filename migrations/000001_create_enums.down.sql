@@ -1,0 +1,9 @@
+DROP TYPE IF EXISTS export_status;
+DROP TYPE IF EXISTS webhook_status;
+DROP TYPE IF EXISTS webhook_event;
+DROP TYPE IF EXISTS notification_type;
+DROP TYPE IF EXISTS task_priority;
+DROP TYPE IF EXISTS task_status;
+DROP TYPE IF EXISTS project_status;
+DROP TYPE IF EXISTS team_member_role;
+DROP TYPE IF EXISTS user_role;

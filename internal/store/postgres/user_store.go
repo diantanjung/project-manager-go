@@ -16,14 +16,14 @@ func (s *Store) CreateUser(ctx context.Context, input service.CreateUserInput) (
 	row := s.db.QueryRow(ctx, `
 		INSERT INTO users (name, email, password, role)
 		VALUES ($1, $2, $3, $4)
-		RETURNING id, name, email, avatar_url, role, created_at, updated_at
+		RETURNING id, name, email, avatar_storage_key, role, created_at, updated_at
 	`, input.Name, input.Email, input.Password, role)
 	return scanUser(row, false)
 }
 
 func (s *Store) GetUserByEmail(ctx context.Context, email string) (domain.User, error) {
 	row := s.db.QueryRow(ctx, `
-		SELECT id, name, email, password, avatar_url, role, created_at, updated_at
+		SELECT id, name, email, password, avatar_storage_key, role, created_at, updated_at
 		FROM users WHERE email = $1
 	`, email)
 	return scanUser(row, true)
@@ -31,7 +31,7 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (domain.User, 
 
 func (s *Store) GetUserByID(ctx context.Context, id int) (domain.User, error) {
 	row := s.db.QueryRow(ctx, `
-		SELECT id, name, email, avatar_url, role, created_at, updated_at
+		SELECT id, name, email, avatar_storage_key, role, created_at, updated_at
 		FROM users WHERE id = $1
 	`, id)
 	return scanUser(row, false)
@@ -61,7 +61,7 @@ func (s *Store) ListUsers(ctx context.Context, filter service.ListUsersFilter) (
 
 	args := append(where.values, filter.Limit, offset(filter.PageFilter))
 	query := fmt.Sprintf(`
-		SELECT id, name, email, avatar_url, role, created_at, updated_at
+		SELECT id, name, email, avatar_storage_key, role, created_at, updated_at
 		FROM users %s
 		ORDER BY %s %s LIMIT $%d OFFSET $%d
 	`, where.clause(), sortBy, order, len(args)-1, len(args))
@@ -91,12 +91,16 @@ func (s *Store) UpdateUser(ctx context.Context, id int, input service.UpdateUser
 	sets.add("name", input.Name)
 	sets.add("email", input.Email)
 	sets.add("password", input.Password)
-	sets.add("avatar_url", input.AvatarURL)
+	if input.AvatarStorageKey != nil {
+		sets.add("avatar_storage_key", input.AvatarStorageKey)
+	} else {
+		sets.add("avatar_storage_key", input.LegacyAvatarURL)
+	}
 	sets.add("role", input.Role)
 	sets.touchUpdatedAt()
 	query := fmt.Sprintf(`
 		UPDATE users SET %s WHERE id = $%d
-		RETURNING id, name, email, avatar_url, role, created_at, updated_at
+		RETURNING id, name, email, avatar_storage_key, role, created_at, updated_at
 	`, sets.clause(), len(sets.values)+1)
 	sets.values = append(sets.values, id)
 	return scanUser(s.db.QueryRow(ctx, query, sets.values...), false)
@@ -105,7 +109,7 @@ func (s *Store) UpdateUser(ctx context.Context, id int, input service.UpdateUser
 func (s *Store) DeleteUser(ctx context.Context, id int) (domain.User, error) {
 	return scanUser(s.db.QueryRow(ctx, `
 		DELETE FROM users WHERE id = $1
-		RETURNING id, name, email, avatar_url, role, created_at, updated_at
+		RETURNING id, name, email, avatar_storage_key, role, created_at, updated_at
 	`, id), false)
 }
 

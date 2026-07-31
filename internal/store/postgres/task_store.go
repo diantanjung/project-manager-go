@@ -49,7 +49,7 @@ func (s *Store) ListTasks(ctx context.Context, user domain.AuthUser, filter serv
 	args := append(where.values, filter.Limit, offset(filter.PageFilter))
 	query := fmt.Sprintf(`
 		SELECT ta.id, ta.title, ta.description, ta.status, ta.priority, ta.project_id, p.name,
-			ta.creator_id, ta.assignee_id, u.name, u.avatar_url, ta.due_date::text, ta.position,
+			ta.creator_id, ta.assignee_id, u.name, NULL::text, ta.due_date::text, ta.position,
 			ta.created_at, ta.updated_at
 		FROM tasks ta
 		LEFT JOIN projects p ON p.id = ta.project_id
@@ -66,7 +66,7 @@ func (s *Store) GetTaskByID(ctx context.Context, user domain.AuthUser, id int) (
 	where.add("ta.id = $%d", id)
 	query := `
 		SELECT ta.id, ta.title, ta.description, ta.status, ta.priority, ta.project_id, p.name,
-			ta.creator_id, ta.assignee_id, u.name, u.avatar_url, ta.due_date::text, ta.position,
+			ta.creator_id, ta.assignee_id, u.name, NULL::text, ta.due_date::text, ta.position,
 			ta.created_at, ta.updated_at
 		FROM tasks ta
 		LEFT JOIN projects p ON p.id = ta.project_id
@@ -143,7 +143,7 @@ func (s *Store) AssignUserToTask(ctx context.Context, input service.TaskAssignme
 
 func (s *Store) ListTaskAssignments(ctx context.Context, taskID int) ([]domain.TaskAssignment, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT ta.id, ta.task_id, ta.user_id, u.name, u.email, u.avatar_url, ta.assigned_at
+		SELECT ta.id, ta.task_id, ta.user_id, u.name, u.email, NULL::text, ta.assigned_at
 		FROM task_assignments ta
 		LEFT JOIN users u ON u.id = ta.user_id
 		WHERE ta.task_id = $1
