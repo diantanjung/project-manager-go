@@ -10,11 +10,12 @@ type CreateUserInput struct {
 }
 
 type UpdateUserInput struct {
-	Name      *string          `json:"name"`
-	Email     *string          `json:"email"`
-	Password  *string          `json:"password,omitempty"`
-	AvatarURL *string          `json:"avatarUrl"`
-	Role      *domain.UserRole `json:"role,omitempty"`
+	Name             *string          `json:"name"`
+	Email            *string          `json:"email"`
+	Password         *string          `json:"password,omitempty"`
+	AvatarStorageKey *string          `json:"avatarStorageKey"`
+	LegacyAvatarURL  *string          `json:"avatarUrl"`
+	Role             *domain.UserRole `json:"role,omitempty"`
 }
 
 type LoginInput struct {
@@ -117,12 +118,14 @@ type CommentInput struct {
 }
 
 type AttachmentInput struct {
-	FileName   string  `json:"fileName"`
-	FileURL    string  `json:"fileUrl"`
-	FileSize   *int    `json:"fileSize"`
-	MimeType   *string `json:"mimeType"`
-	TaskID     int     `json:"-"`
-	UploaderID int     `json:"-"`
+	FileName     string  `json:"fileName"`
+	OriginalName string  `json:"originalName"`
+	StorageKey   string  `json:"storageKey"`
+	FileURL      string  `json:"fileUrl"`
+	FileSize     *int    `json:"fileSize"`
+	MimeType     *string `json:"mimeType"`
+	TaskID       int     `json:"-"`
+	UploaderID   int     `json:"-"`
 }
 
 type NotificationInput struct {

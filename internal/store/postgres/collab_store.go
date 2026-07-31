@@ -21,7 +21,7 @@ func (s *Store) CreateComment(ctx context.Context, input service.CommentInput) (
 
 func (s *Store) ListComments(ctx context.Context, taskID int) ([]domain.CommentView, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT c.id, c.content, c.task_id, c.author_id, u.name, u.avatar_url, c.created_at, c.updated_at
+		SELECT c.id, c.content, c.task_id, c.author_id, u.name, NULL::text, c.created_at, c.updated_at
 		FROM comments c
 		LEFT JOIN users u ON u.id = c.author_id
 		WHERE c.task_id = $1
@@ -77,13 +77,22 @@ func (s *Store) FindUserIDByExactName(ctx context.Context, name string) (int, bo
 }
 
 func (s *Store) CreateAttachment(ctx context.Context, input service.AttachmentInput) (domain.Attachment, error) {
+	originalName := input.OriginalName
+	if originalName == "" {
+		originalName = input.FileName
+	}
+	storageKey := input.StorageKey
+	if storageKey == "" {
+		storageKey = input.FileURL
+	}
+
 	var attachment domain.Attachment
 	err := s.db.QueryRow(ctx, `
-		INSERT INTO attachments (file_name, file_url, file_size, mime_type, task_id, uploader_id)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, file_name, file_url, file_size, mime_type, task_id, uploader_id, created_at
-	`, input.FileName, input.FileURL, input.FileSize, input.MimeType, input.TaskID, input.UploaderID).Scan(
-		&attachment.ID, &attachment.FileName, &attachment.FileURL, &attachment.FileSize,
+		INSERT INTO attachments (file_name, original_name, storage_key, file_size, mime_type, task_id, uploader_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, file_name, original_name, storage_key, file_size, mime_type, task_id, uploader_id, created_at
+	`, input.FileName, originalName, storageKey, input.FileSize, input.MimeType, input.TaskID, input.UploaderID).Scan(
+		&attachment.ID, &attachment.FileName, &attachment.OriginalName, &attachment.StorageKey, &attachment.FileSize,
 		&attachment.MimeType, &attachment.TaskID, &attachment.UploaderID, &attachment.CreatedAt,
 	)
 	return attachment, notFound(err)
@@ -91,7 +100,7 @@ func (s *Store) CreateAttachment(ctx context.Context, input service.AttachmentIn
 
 func (s *Store) ListAttachments(ctx context.Context, taskID int) ([]domain.Attachment, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT id, file_name, file_url, file_size, mime_type, task_id, uploader_id, created_at
+		SELECT id, file_name, original_name, storage_key, file_size, mime_type, task_id, uploader_id, created_at
 		FROM attachments WHERE task_id = $1
 	`, taskID)
 	if err != nil {
@@ -101,7 +110,7 @@ func (s *Store) ListAttachments(ctx context.Context, taskID int) ([]domain.Attac
 	out := []domain.Attachment{}
 	for rows.Next() {
 		var item domain.Attachment
-		if err := rows.Scan(&item.ID, &item.FileName, &item.FileURL, &item.FileSize, &item.MimeType, &item.TaskID, &item.UploaderID, &item.CreatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.FileName, &item.OriginalName, &item.StorageKey, &item.FileSize, &item.MimeType, &item.TaskID, &item.UploaderID, &item.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, item)
@@ -112,9 +121,9 @@ func (s *Store) ListAttachments(ctx context.Context, taskID int) ([]domain.Attac
 func (s *Store) GetAttachmentByID(ctx context.Context, id int) (domain.Attachment, error) {
 	var item domain.Attachment
 	err := s.db.QueryRow(ctx, `
-		SELECT id, file_name, file_url, file_size, mime_type, task_id, uploader_id, created_at
+		SELECT id, file_name, original_name, storage_key, file_size, mime_type, task_id, uploader_id, created_at
 		FROM attachments WHERE id = $1
-	`, id).Scan(&item.ID, &item.FileName, &item.FileURL, &item.FileSize, &item.MimeType, &item.TaskID, &item.UploaderID, &item.CreatedAt)
+	`, id).Scan(&item.ID, &item.FileName, &item.OriginalName, &item.StorageKey, &item.FileSize, &item.MimeType, &item.TaskID, &item.UploaderID, &item.CreatedAt)
 	return item, notFound(err)
 }
 
@@ -122,8 +131,8 @@ func (s *Store) DeleteAttachment(ctx context.Context, id int) (domain.Attachment
 	var item domain.Attachment
 	err := s.db.QueryRow(ctx, `
 		DELETE FROM attachments WHERE id = $1
-		RETURNING id, file_name, file_url, file_size, mime_type, task_id, uploader_id, created_at
-	`, id).Scan(&item.ID, &item.FileName, &item.FileURL, &item.FileSize, &item.MimeType, &item.TaskID, &item.UploaderID, &item.CreatedAt)
+		RETURNING id, file_name, original_name, storage_key, file_size, mime_type, task_id, uploader_id, created_at
+	`, id).Scan(&item.ID, &item.FileName, &item.OriginalName, &item.StorageKey, &item.FileSize, &item.MimeType, &item.TaskID, &item.UploaderID, &item.CreatedAt)
 	return item, notFound(err)
 }
 
@@ -139,7 +148,7 @@ func (s *Store) CreateNotification(ctx context.Context, input service.Notificati
 
 func (s *Store) ListNotifications(ctx context.Context, userID int) ([]domain.Notification, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT n.id, n.user_id, n.actor_id, u.name, u.avatar_url, n.type, n.task_id, n.is_read, n.created_at
+		SELECT n.id, n.user_id, n.actor_id, u.name, NULL::text, n.type, n.task_id, n.is_read, n.created_at
 		FROM notifications n
 		LEFT JOIN users u ON u.id = n.actor_id
 		WHERE n.user_id = $1

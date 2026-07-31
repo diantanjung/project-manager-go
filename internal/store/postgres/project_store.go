@@ -114,7 +114,7 @@ func (s *Store) ListProjectTasks(
 	args := append(where.values, filter.Limit, offset(filter))
 	query := fmt.Sprintf(`
 		SELECT ta.id, ta.title, ta.description, ta.status, ta.priority, ta.project_id, p.name,
-			ta.creator_id, ta.assignee_id, u.name, u.avatar_url, ta.due_date::text, ta.position,
+			ta.creator_id, ta.assignee_id, u.name, NULL::text, ta.due_date::text, ta.position,
 			ta.created_at, ta.updated_at
 		FROM tasks ta
 		LEFT JOIN projects p ON p.id = ta.project_id

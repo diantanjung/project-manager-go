@@ -37,11 +37,11 @@ original backend project described in [doc/README.md](doc/README.md).
 
 - Go 1.26.5 or newer
 - PostgreSQL
-- A database schema compatible with the entities used by this service
+- A database reachable through `DATABASE_URL`
 
-Database migrations are not included in this repository yet. See
-[doc/database.md](doc/database.md) and [doc/TODO.md](doc/TODO.md) for the current
-database implementation notes and remaining work.
+Versioned SQL migrations live in [migrations](migrations). The database helper
+command uses `sqlx` for connection checks and `golang-migrate` for schema
+changes.
 
 ### Configuration
 
@@ -74,6 +74,8 @@ JWT_REFRESH_SECRET=replace-me-too
 
 ```bash
 go mod download
+go run ./cmd/db ping
+go run ./cmd/db migrate-up
 go run ./cmd/server
 ```
 
@@ -85,6 +87,17 @@ Useful checks:
 curl http://localhost:3000/
 curl http://localhost:3000/health
 ```
+
+Migration commands:
+
+```bash
+go run ./cmd/db migrate-version
+go run ./cmd/db migrate-down
+go run ./cmd/db migrate-steps 1
+```
+
+Set `MIGRATIONS_SOURCE` when running from outside the repository root. The
+default is `file://migrations`.
 
 ### Run Tests
 
@@ -136,6 +149,7 @@ projects requires `productOwner`.
 ## Project Layout
 
 ```text
+cmd/db/                  Database ping and migration commands
 cmd/server/              HTTP server entry point
 internal/auth/           JWT token creation and validation
 internal/config/         Environment and .env loading
@@ -149,9 +163,9 @@ doc/                     Implementation notes and rewrite tracking
 ## Development Status
 
 This is an active rewrite of an existing backend. The Go service already includes
-the main HTTP, service, auth, and PostgreSQL store layers, while versioned
-database migrations and broader integration coverage are still tracked as
-remaining work in [doc/TODO.md](doc/TODO.md).
+the main HTTP, service, auth, PostgreSQL store layers, and initial versioned SQL
+migrations, while broader integration coverage is still tracked as remaining
+work in [doc/TODO.md](doc/TODO.md).
 
 ## Contributing
 

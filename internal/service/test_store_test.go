@@ -52,11 +52,12 @@ func newMemoryStore(t *testing.T) *memoryStore {
 		},
 		attachments: map[int]domain.Attachment{
 			1: {
-				ID:         1,
-				TaskID:     10,
-				UploaderID: 1,
-				FileName:   "spec.pdf",
-				FileURL:    "https://example.com/spec.pdf",
+				ID:           1,
+				TaskID:       10,
+				UploaderID:   1,
+				FileName:     "spec.pdf",
+				OriginalName: "spec.pdf",
+				StorageKey:   "attachments/tasks/10/spec.pdf",
 			},
 		},
 		notifications:    []NotificationInput{},
