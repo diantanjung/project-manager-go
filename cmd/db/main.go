@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -21,6 +23,9 @@ import (
 
 const defaultMigrationsSource = "file://migrations"
 
+//go:embed demo_seed.sql
+var demoSeedSQL string
+
 func main() {
 	if err := run(); err != nil {
 		log.Fatal(err)
@@ -29,7 +34,7 @@ func main() {
 
 func run() error {
 	if len(os.Args) < 2 {
-		return fmt.Errorf("usage: go run ./cmd/db <ping|migrate-up|migrate-down|migrate-version|migrate-steps>")
+		return fmt.Errorf("usage: go run ./cmd/db <ping|migrate-up|migrate-down|migrate-version|migrate-steps|seed>")
 	}
 
 	cfg, err := config.Load()
@@ -49,6 +54,8 @@ func run() error {
 		return migrateSteps(cfg.DatabaseURL, -1)
 	case "migrate-version":
 		return migrateVersion(cfg.DatabaseURL)
+	case "seed":
+		return seed(cfg.DatabaseURL)
 	case "migrate-steps":
 		if len(os.Args) != 3 {
 			return errors.New("usage: go run ./cmd/db migrate-steps <n>")
@@ -84,6 +91,53 @@ func ping(databaseURL string) error {
 	}
 	fmt.Printf("database ping ok: %s\n", databaseName)
 	return nil
+}
+
+func seed(databaseURL string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	db, err := sqlx.ConnectContext(ctx, "pgx", databaseURL)
+	if err != nil {
+		return fmt.Errorf("connecting database: %w", err)
+	}
+	defer db.Close()
+
+	db.SetMaxOpenConns(5)
+	db.SetMaxIdleConns(2)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxIdleTime(time.Minute)
+
+	tx, err := db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("beginning seed transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	for _, statement := range seedStatements(demoSeedSQL) {
+		if _, err := tx.ExecContext(ctx, statement); err != nil {
+			return fmt.Errorf("running demo seed statement: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("committing demo seed: %w", err)
+	}
+	fmt.Println("demo seed ok")
+	return nil
+}
+
+func seedStatements(seedSQL string) []string {
+	parts := strings.Split(seedSQL, ";")
+	statements := make([]string, 0, len(parts))
+	for _, part := range parts {
+		statement := strings.TrimSpace(part)
+		if statement == "" || statement == "BEGIN" || statement == "COMMIT" {
+			continue
+		}
+		statements = append(statements, statement)
+	}
+	return statements
 }
 
 func migrateUp(databaseURL string) error {

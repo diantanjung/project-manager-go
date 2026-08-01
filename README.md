@@ -76,6 +76,7 @@ JWT_REFRESH_SECRET=replace-me-too
 go mod download
 go run ./cmd/db ping
 go run ./cmd/db migrate-up
+go run ./cmd/db seed
 go run ./cmd/server
 ```
 
@@ -94,6 +95,7 @@ Migration commands:
 go run ./cmd/db migrate-version
 go run ./cmd/db migrate-down
 go run ./cmd/db migrate-steps 1
+go run ./cmd/db seed
 ```
 
 Set `MIGRATIONS_SOURCE` when running from outside the repository root. The
