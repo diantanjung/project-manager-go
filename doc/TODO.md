@@ -22,7 +22,7 @@
 - [x] Jalankan ulang `go test ./...` sampai semua package hijau.
 - [x] Implementasikan connection supabase
 - [x] Tambahkan migration SQL versioned dengan `golang-migrate` berdasarkan target schema shared contract.
-- [ ] Refactor PostgreSQL store dari `pgx` ke `sqlx` sesuai keputusan stack Go.
+- [x] Refactor PostgreSQL store dari `pgx` ke `sqlx` sesuai keputusan stack Go.
 - [ ] Pastikan auth/session MVP lengkap: register, login, refresh, logout, `GET /auth/me`, dan compatibility alias `/api`.
 - [ ] Rapikan response envelope, pagination, dan error shape agar konsisten dengan shared API contract.
 - [ ] Jalankan backend Go dengan PostgreSQL lokal/container, apply migration, lalu validasi smoke test endpoint MVP.

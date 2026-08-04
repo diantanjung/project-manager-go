@@ -13,28 +13,25 @@ func (s *Store) CreateUser(ctx context.Context, input service.CreateUserInput) (
 	if input.Role != nil {
 		role = *input.Role
 	}
-	row := s.db.QueryRow(ctx, `
+	return getOne[domain.User](s, ctx, `
 		INSERT INTO users (name, email, password, role)
 		VALUES ($1, $2, $3, $4)
 		RETURNING id, name, email, avatar_storage_key, role, created_at, updated_at
 	`, input.Name, input.Email, input.Password, role)
-	return scanUser(row, false)
 }
 
 func (s *Store) GetUserByEmail(ctx context.Context, email string) (domain.User, error) {
-	row := s.db.QueryRow(ctx, `
+	return getOne[domain.User](s, ctx, `
 		SELECT id, name, email, password, avatar_storage_key, role, created_at, updated_at
 		FROM users WHERE email = $1
 	`, email)
-	return scanUser(row, true)
 }
 
 func (s *Store) GetUserByID(ctx context.Context, id int) (domain.User, error) {
-	row := s.db.QueryRow(ctx, `
+	return getOne[domain.User](s, ctx, `
 		SELECT id, name, email, avatar_storage_key, role, created_at, updated_at
 		FROM users WHERE id = $1
 	`, id)
-	return scanUser(row, false)
 }
 
 func (s *Store) ListUsers(ctx context.Context, filter service.ListUsersFilter) (domain.Paginated[domain.User], error) {
@@ -65,25 +62,7 @@ func (s *Store) ListUsers(ctx context.Context, filter service.ListUsersFilter) (
 		FROM users %s
 		ORDER BY %s %s LIMIT $%d OFFSET $%d
 	`, where.clause(), sortBy, order, len(args)-1, len(args))
-	rows, err := s.db.Query(ctx, query, args...)
-	if err != nil {
-		return domain.Paginated[domain.User]{}, fmt.Errorf("listing users: %w", err)
-	}
-	defer rows.Close()
-
-	users := []domain.User{}
-	for rows.Next() {
-		user, err := scanUser(rows, false)
-		if err != nil {
-			return domain.Paginated[domain.User]{}, err
-		}
-		users = append(users, user)
-	}
-	if err := rows.Err(); err != nil {
-		return domain.Paginated[domain.User]{}, err
-	}
-
-	return paginated(users, filter.PageFilter, total), nil
+	return selectPage[domain.User](s, ctx, query, filter.PageFilter, total, args...)
 }
 
 func (s *Store) UpdateUser(ctx context.Context, id int, input service.UpdateUserInput) (domain.User, error) {
@@ -103,14 +82,14 @@ func (s *Store) UpdateUser(ctx context.Context, id int, input service.UpdateUser
 		RETURNING id, name, email, avatar_storage_key, role, created_at, updated_at
 	`, sets.clause(), len(sets.values)+1)
 	sets.values = append(sets.values, id)
-	return scanUser(s.db.QueryRow(ctx, query, sets.values...), false)
+	return getOne[domain.User](s, ctx, query, sets.values...)
 }
 
 func (s *Store) DeleteUser(ctx context.Context, id int) (domain.User, error) {
-	return scanUser(s.db.QueryRow(ctx, `
+	return getOne[domain.User](s, ctx, `
 		DELETE FROM users WHERE id = $1
 		RETURNING id, name, email, avatar_storage_key, role, created_at, updated_at
-	`, id), false)
+	`, id)
 }
 
 func (s *Store) ListUserTasks(
@@ -122,14 +101,14 @@ func (s *Store) ListUserTasks(
 	if err != nil {
 		return domain.Paginated[domain.Task]{}, err
 	}
-	rows, err := s.db.Query(ctx, `
-		SELECT t.id, t.title, t.description, t.status, t.priority, t.project_id, p.name,
-			t.creator_id, t.assignee_id, NULL::text, NULL::text, t.due_date::text, t.position,
+	query := `
+		SELECT t.id, t.title, t.description, t.status, t.priority, t.project_id, p.name AS project_name,
+			t.creator_id, t.assignee_id, NULL::text AS assignee_name, NULL::text AS assignee_avatar_url, t.due_date::text AS due_date, t.position,
 			t.created_at, t.updated_at
 		FROM tasks t
 		LEFT JOIN projects p ON p.id = t.project_id
 		WHERE t.creator_id = $1 OR t.assignee_id = $1
 		ORDER BY t.created_at DESC LIMIT $2 OFFSET $3
-	`, userID, filter.Limit, offset(filter))
-	return s.scanTaskPage(rows, filter, total, err)
+	`
+	return selectPage[domain.Task](s, ctx, query, filter, total, userID, filter.Limit, offset(filter))
 }

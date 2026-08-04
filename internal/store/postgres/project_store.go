@@ -13,20 +13,19 @@ func (s *Store) CanCreateProjectForTeam(ctx context.Context, user domain.AuthUse
 		return true, nil
 	}
 	var id int
-	err := s.db.QueryRow(ctx, `
+	err := s.db.GetContext(ctx, &id, `
 		SELECT id FROM team_members
 		WHERE team_id = $1 AND user_id = $2 AND role IN ('owner', 'admin')
-	`, teamID, user.ID).Scan(&id)
+	`, teamID, user.ID)
 	return exists(err)
 }
 
 func (s *Store) CreateProject(ctx context.Context, input service.ProjectInput) (domain.Project, error) {
-	row := s.db.QueryRow(ctx, `
+	return getOne[domain.Project](s, ctx, `
 		INSERT INTO projects (name, description, team_id, owner_id)
 		VALUES ($1, $2, $3, $4)
 		RETURNING id, name, description, team_id, owner_id, created_at, updated_at
 	`, value(input.Name), input.Description, value(input.TeamID), input.OwnerID)
-	return scanProject(row, false)
 }
 
 func (s *Store) ListProjects(
@@ -43,7 +42,7 @@ func (s *Store) ListProjects(
 	}
 	totalQuery := "SELECT count(*) FROM projects p " + where.clause()
 	var total int
-	if err := s.db.QueryRow(ctx, totalQuery, where.values...).Scan(&total); err != nil {
+	if err := s.db.GetContext(ctx, &total, totalQuery, where.values...); err != nil {
 		return domain.Paginated[domain.Project]{}, err
 	}
 
@@ -54,27 +53,26 @@ func (s *Store) ListProjects(
 	})
 	args := append(where.values, filter.Limit, offset(filter.PageFilter))
 	query := fmt.Sprintf(`
-		SELECT p.id, p.name, p.description, p.team_id, t.name, p.owner_id, u.name, p.created_at, p.updated_at
+		SELECT p.id, p.name, p.description, p.team_id, t.name AS team_name, p.owner_id, u.name AS owner_name, p.created_at, p.updated_at
 		FROM projects p
 		LEFT JOIN teams t ON t.id = p.team_id
 		LEFT JOIN users u ON u.id = p.owner_id
 		%s
 		ORDER BY %s %s LIMIT $%d OFFSET $%d
 	`, where.clause(), sortBy, order(filter.Order), len(args)-1, len(args))
-	rows, err := s.db.Query(ctx, query, args...)
-	return scanProjectPage(rows, filter.PageFilter, total, err)
+	return selectPage[domain.Project](s, ctx, query, filter.PageFilter, total, args...)
 }
 
 func (s *Store) GetProjectByID(ctx context.Context, user domain.AuthUser, id int) (domain.Project, error) {
 	where := projectWhere(user)
 	where.add("p.id = $%d", id)
 	query := `
-		SELECT p.id, p.name, p.description, p.team_id, t.name, p.owner_id, u.name, p.created_at, p.updated_at
+		SELECT p.id, p.name, p.description, p.team_id, t.name AS team_name, p.owner_id, u.name AS owner_name, p.created_at, p.updated_at
 		FROM projects p
 		LEFT JOIN teams t ON t.id = p.team_id
 		LEFT JOIN users u ON u.id = p.owner_id
 		` + where.clause()
-	return scanProject(s.db.QueryRow(ctx, query, where.values...), true)
+	return getOne[domain.Project](s, ctx, query, where.values...)
 }
 
 func (s *Store) UpdateProject(ctx context.Context, id int, input service.ProjectInput) (domain.Project, error) {
@@ -88,14 +86,14 @@ func (s *Store) UpdateProject(ctx context.Context, id int, input service.Project
 		RETURNING id, name, description, team_id, owner_id, created_at, updated_at
 	`, sets.clause(), len(sets.values)+1)
 	sets.values = append(sets.values, id)
-	return scanProject(s.db.QueryRow(ctx, query, sets.values...), false)
+	return getOne[domain.Project](s, ctx, query, sets.values...)
 }
 
 func (s *Store) DeleteProject(ctx context.Context, id int) (domain.Project, error) {
-	return scanProject(s.db.QueryRow(ctx, `
+	return getOne[domain.Project](s, ctx, `
 		DELETE FROM projects WHERE id = $1
 		RETURNING id, name, description, team_id, owner_id, created_at, updated_at
-	`, id), false)
+	`, id)
 }
 
 func (s *Store) ListProjectTasks(
@@ -108,13 +106,13 @@ func (s *Store) ListProjectTasks(
 	where.add("ta.project_id = $%d", projectID)
 	totalQuery := "SELECT count(*) FROM tasks ta " + where.clause()
 	var total int
-	if err := s.db.QueryRow(ctx, totalQuery, where.values...).Scan(&total); err != nil {
+	if err := s.db.GetContext(ctx, &total, totalQuery, where.values...); err != nil {
 		return domain.Paginated[domain.Task]{}, err
 	}
 	args := append(where.values, filter.Limit, offset(filter))
 	query := fmt.Sprintf(`
-		SELECT ta.id, ta.title, ta.description, ta.status, ta.priority, ta.project_id, p.name,
-			ta.creator_id, ta.assignee_id, u.name, NULL::text, ta.due_date::text, ta.position,
+		SELECT ta.id, ta.title, ta.description, ta.status, ta.priority, ta.project_id, p.name AS project_name,
+			ta.creator_id, ta.assignee_id, u.name AS assignee_name, NULL::text AS assignee_avatar_url, ta.due_date::text AS due_date, ta.position,
 			ta.created_at, ta.updated_at
 		FROM tasks ta
 		LEFT JOIN projects p ON p.id = ta.project_id
@@ -122,6 +120,5 @@ func (s *Store) ListProjectTasks(
 		%s
 		ORDER BY ta.created_at DESC LIMIT $%d OFFSET $%d
 	`, where.clause(), len(args)-1, len(args))
-	rows, err := s.db.Query(ctx, query, args...)
-	return s.scanTaskPage(rows, filter, total, err)
+	return selectPage[domain.Task](s, ctx, query, filter, total, args...)
 }

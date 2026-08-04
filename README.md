@@ -13,7 +13,7 @@ original backend project described in [doc/README.md](doc/README.md).
 
 - Go 1.26.5
 - Gin for HTTP routing and middleware
-- PostgreSQL through `pgx/v5`
+- PostgreSQL through `sqlx` with the `pgx` database/sql driver
 - JWT access and refresh tokens
 - Cookie-based refresh token rotation
 - `golang.org/x/crypto/bcrypt` password hashing
