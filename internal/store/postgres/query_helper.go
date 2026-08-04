@@ -2,11 +2,10 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
-
-	"github.com/jackc/pgx/v5"
 
 	"project-manager-go/internal/domain"
 	"project-manager-go/internal/service"
@@ -15,7 +14,7 @@ import (
 func (s *Store) count(ctx context.Context, table string, clause string, args ...any) (int, error) {
 	var total int
 	query := fmt.Sprintf("SELECT count(*) FROM %s %s", table, clause)
-	err := s.db.QueryRow(ctx, query, args...).Scan(&total)
+	err := s.db.GetContext(ctx, &total, query, args...)
 	return total, err
 }
 
@@ -105,7 +104,7 @@ func notFound(err error) error {
 	if err == nil {
 		return nil
 	}
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return domain.ErrNotFound
 	}
 	return err
@@ -115,7 +114,7 @@ func exists(err error) (bool, error) {
 	if err == nil {
 		return true, nil
 	}
-	if errors.Is(err, pgx.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	return false, err
