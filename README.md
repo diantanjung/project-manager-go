@@ -118,6 +118,8 @@ Public endpoints:
 | `POST` | `/api/auth/register` | Register a user. |
 | `POST` | `/api/auth/login` | Log in and receive an access token. |
 | `POST` | `/api/auth/refresh` | Refresh the access token from the refresh cookie. |
+| `GET` | `/api/auth/me` | Return the current authenticated user. |
+| `POST` | `/api/auth/logout` | Revoke the refresh token and clear the refresh cookie. |
 
 Protected endpoints require an `Authorization: Bearer <accessToken>` header.
 The same API routes are mounted under both `/api` and `/api/v1`.

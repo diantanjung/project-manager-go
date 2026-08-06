@@ -48,6 +48,11 @@ func (h *Handler) refresh(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"accessToken": result.AccessToken})
 }
 
+func (h *Handler) me(c *gin.Context) {
+	user, err := h.service.CurrentUser(c.Request.Context(), currentUser(c))
+	respond(c, http.StatusOK, user, err)
+}
+
 func (h *Handler) logout(c *gin.Context) {
 	refreshToken, _ := c.Cookie("refreshToken")
 	err := h.service.Logout(c.Request.Context(), currentUser(c), refreshToken)
