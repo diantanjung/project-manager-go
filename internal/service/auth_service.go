@@ -15,6 +15,18 @@ func (s *Service) Authenticate(token string) (domain.AuthUser, error) {
 	return s.tokens.VerifyAccessToken(token)
 }
 
+func (s *Service) CurrentUser(ctx context.Context, authUser domain.AuthUser) (domain.User, error) {
+	user, err := s.store.GetUserByID(ctx, authUser.ID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.User{}, domain.ErrNotFound
+		}
+		return domain.User{}, fmt.Errorf("getting current user: %w", err)
+	}
+	user.PasswordHash = ""
+	return user, nil
+}
+
 func (s *Service) Register(ctx context.Context, input CreateUserInput) (domain.User, error) {
 	if err := validateCreateUser(input); err != nil {
 		return domain.User{}, err

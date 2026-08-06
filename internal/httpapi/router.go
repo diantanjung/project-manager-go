@@ -47,6 +47,7 @@ func (h *Handler) mountAPI(api *gin.RouterGroup) {
 	authRoutes.POST("/register", h.register)
 	authRoutes.POST("/login", h.login)
 	authRoutes.POST("/refresh", h.refresh)
+	authRoutes.GET("/me", h.authRequired(), h.me)
 	authRoutes.POST("/logout", h.authRequired(), h.logout)
 
 	protected := api.Group("")
