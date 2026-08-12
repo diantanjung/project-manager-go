@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>05. Domain Model</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>Project Manager Go</h1>
+      <p>Bab 05</p>
+      <nav class="nav">
+        <a href="index.html">Daftar Bab</a>
+        <a href="01-gambaran-besar.html">01. Gambaran Besar</a>
+        <a href="02-setup-development.html">02. Setup Development</a>
+        <a href="03-struktur-project.html">03. Struktur Project</a>
+        <a href="04-konsep-dasar-go.html">04. Konsep Dasar Go</a>
+        <a class="active" href="05-domain-model.html">05. Domain Model</a>
+        <a href="06-service-dan-interface.html">06. Service dan Interface</a>
+        <a href="07-dependency-injection.html">07. Dependency Injection</a>
+        <a href="08-http-api.html">08. HTTP API</a>
+        <a href="09-postgres-store.html">09. PostgreSQL Store</a>
+        <a href="10-auth-rbac.html">10. Auth dan RBAC</a>
+        <a href="11-testing-debugging.html">11. Testing dan Debugging</a>
+        <a href="12-recap.html">12. Recap</a>
+      </nav>
+    </aside>
+    <main class="content">
+      <section class="hero">
+        <p class="eyebrow">Bab 05</p>
+        <h1>Domain Model</h1>
+        <p class="lead">Domain adalah bahasa inti aplikasi. Di project ini, domain menyimpan tipe seperti user, team, project, task, enum role, pagination, notifikasi, dan error aplikasi.</p>
+      </section>
+
+      <h2>Apa itu domain?</h2>
+      <p>Domain adalah bagian yang menjelaskan konsep bisnis tanpa tergantung HTTP atau database. Contoh: <code>Task</code> adalah konsep bisnis, sedangkan query SQL untuk mengambil task adalah detail store.</p>
+
+      <h2>Contoh model task</h2>
+      <pre><code>type Task struct {
+    ID          int           `json:"id" db:"id"`
+    Title       string        `json:"title" db:"title"`
+    Description *string       `json:"description" db:"description"`
+    Status      TaskStatus    `json:"status" db:"status"`
+    Priority    *TaskPriority `json:"priority" db:"priority"`
+    ProjectID   int           `json:"projectId" db:"project_id"`
+    Comments    []CommentView `json:"comments,omitempty" db:"-"`
+}</code></pre>
+
+      <h2>Kenapa field ada pointer?</h2>
+      <p><code>Description *string</code> berarti deskripsi bisa kosong secara semantik, bukan hanya string kosong. Ini penting saat database punya nilai <code>NULL</code>. Pada input update, pointer juga membantu membedakan "field tidak dikirim" dan "field dikirim dengan nilai kosong".</p>
+
+      <h2>Enum sebagai tipe khusus</h2>
+      <p>Role dan status task biasanya disimpan sebagai string, tetapi lebih aman jika dibungkus tipe khusus seperti <code>domain.UserRole</code>, <code>domain.TaskStatus</code>, dan <code>domain.TaskPriority</code>.</p>
+
+      <pre><code>type UserRole string
+type TaskStatus string
+type TaskPriority string</code></pre>
+
+      <p>Dengan tipe khusus, signature function jadi lebih jelas. <code>HasRole(actor.Role, domain.RoleProjectManager)</code> lebih mudah dibaca daripada membandingkan string mentah di banyak tempat.</p>
+
+      <h2>Generic pagination</h2>
+      <p>Project punya tipe generic untuk response list:</p>
+      <pre><code>type Paginated[T any] struct {
+    Data       []T        `json:"data"`
+    Pagination Pagination `json:"pagination"`
+}</code></pre>
+
+      <p>Tanpa generic, kita mungkin perlu membuat banyak tipe seperti <code>UserListResponse</code>, <code>TaskListResponse</code>, dan <code>ProjectListResponse</code>. Dengan generic, satu tipe cukup.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Pemakaian</th>
+            <th>Arti</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>domain.Paginated[domain.User]</code></td>
+            <td>Data berisi slice user.</td>
+          </tr>
+          <tr>
+            <td><code>domain.Paginated[domain.Task]</code></td>
+            <td>Data berisi slice task.</td>
+          </tr>
+          <tr>
+            <td><code>domain.Paginated[domain.Project]</code></td>
+            <td>Data berisi slice project.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Error domain</h2>
+      <p>Folder domain juga menyimpan error aplikasi. Tujuannya agar handler bisa mengubah error menjadi HTTP status yang konsisten. Misalnya error forbidden menjadi status 403, not found menjadi 404, dan validation menjadi 400.</p>
+
+      <div class="note">
+        <strong>Prinsip:</strong> domain boleh tahu konsep bisnis, tetapi jangan biarkan domain tahu detail Gin, sqlx, PostgreSQL, cookie, atau header HTTP.
+      </div>
+
+      <h2>Latihan</h2>
+      <ol>
+        <li>Buka <code>internal/domain/user.go</code>, lalu cari field yang punya tag <code>json</code> dan <code>db</code>.</li>
+        <li>Buka <code>internal/domain/enums.go</code>, lalu catat role dan status yang tersedia.</li>
+        <li>Buka <code>internal/domain/pagination.go</code>, lalu jelaskan dengan kata sendiri apa arti <code>T any</code>.</li>
+      </ol>
+
+      <nav class="pager">
+        <a href="04-konsep-dasar-go.html">Bab 04</a>
+        <a href="06-service-dan-interface.html">Lanjut Bab 06</a>
+      </nav>
+    </main>
+  </div>
+</body>
+</html>

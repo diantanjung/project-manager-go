@@ -9,6 +9,22 @@ import (
 	"project-manager-go/internal/domain"
 )
 
+type responseEnvelope struct {
+	Data       any                `json:"data"`
+	Pagination *domain.Pagination `json:"pagination,omitempty"`
+	Meta       any                `json:"meta,omitempty"`
+}
+
+type errorEnvelope struct {
+	Message string              `json:"message"`
+	Errors  map[string][]string `json:"errors,omitempty"`
+}
+
+type paginatedPayload interface {
+	Items() any
+	PageInfo() domain.Pagination
+}
+
 func bindJSON(c *gin.Context, dest any) bool {
 	if err := c.ShouldBindJSON(dest); err != nil {
 		respondError(c, domain.NewError(domain.ErrValidation, err.Error()))
@@ -22,10 +38,31 @@ func respond(c *gin.Context, status int, payload any, err error) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(status, payload)
+	respondData(c, status, payload, nil)
+}
+
+func respondWithMeta(c *gin.Context, status int, payload any, meta any, err error) {
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	respondData(c, status, payload, meta)
+}
+
+func respondData(c *gin.Context, status int, payload any, meta any) {
+	envelope := responseEnvelope{Data: payload, Meta: meta}
+	if paginated, ok := payload.(paginatedPayload); ok {
+		pageInfo := paginated.PageInfo()
+		envelope.Data = paginated.Items()
+		envelope.Pagination = &pageInfo
+	}
+	c.JSON(status, envelope)
 }
 
 func respondError(c *gin.Context, err error) {
+	status := http.StatusInternalServerError
+	message := "Internal server error"
+
 	var appErr *domain.AppError
 	if errors.As(err, &appErr) {
 		switch {
@@ -33,21 +70,24 @@ func respondError(c *gin.Context, err error) {
 			errors.Is(appErr.Err, domain.ErrInvalidRefresh),
 			errors.Is(appErr.Err, domain.ErrNoToken),
 			errors.Is(appErr.Err, domain.ErrMalformedToken):
-			c.JSON(http.StatusUnauthorized, gin.H{"message": appErr.Message})
+			status = http.StatusUnauthorized
 		case errors.Is(appErr.Err, domain.ErrForbidden):
-			c.JSON(http.StatusForbidden, gin.H{"message": appErr.Message})
+			status = http.StatusForbidden
 		case errors.Is(appErr.Err, domain.ErrDuplicate):
-			c.JSON(http.StatusConflict, gin.H{"message": appErr.Message})
+			status = http.StatusConflict
 		case errors.Is(appErr.Err, domain.ErrValidation):
-			c.JSON(http.StatusBadRequest, gin.H{"message": appErr.Message})
+			status = http.StatusUnprocessableEntity
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"message": appErr.Message})
+			status = http.StatusInternalServerError
 		}
-		return
+		message = appErr.Message
+	} else if errors.Is(err, domain.ErrNotFound) {
+		status = http.StatusNotFound
+		message = "Resource not found"
 	}
-	if errors.Is(err, domain.ErrNotFound) {
-		c.JSON(http.StatusNotFound, gin.H{"message": "Resource not found"})
-		return
+
+	if message == "" {
+		message = http.StatusText(status)
 	}
-	c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+	c.JSON(status, errorEnvelope{Message: message})
 }

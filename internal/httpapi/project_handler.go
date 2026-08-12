@@ -21,11 +21,11 @@ func (h *Handler) listProjects(c *gin.Context) {
 }
 
 func (h *Handler) createProject(c *gin.Context) {
-	var input service.ProjectInput
-	if !bindJSON(c, &input) {
+	var request createProjectRequest
+	if !bindJSON(c, &request) {
 		return
 	}
-	project, err := h.service.CreateProject(c.Request.Context(), currentUser(c), input)
+	project, err := h.service.CreateProject(c.Request.Context(), currentUser(c), request.input())
 	respond(c, http.StatusCreated, project, err)
 }
 

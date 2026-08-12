@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>10. Auth dan RBAC</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>Project Manager Go</h1>
+      <p>Bab 10</p>
+      <nav class="nav">
+        <a href="index.html">Daftar Bab</a>
+        <a href="01-gambaran-besar.html">01. Gambaran Besar</a>
+        <a href="02-setup-development.html">02. Setup Development</a>
+        <a href="03-struktur-project.html">03. Struktur Project</a>
+        <a href="04-konsep-dasar-go.html">04. Konsep Dasar Go</a>
+        <a href="05-domain-model.html">05. Domain Model</a>
+        <a href="06-service-dan-interface.html">06. Service dan Interface</a>
+        <a href="07-dependency-injection.html">07. Dependency Injection</a>
+        <a href="08-http-api.html">08. HTTP API</a>
+        <a href="09-postgres-store.html">09. PostgreSQL Store</a>
+        <a class="active" href="10-auth-rbac.html">10. Auth dan RBAC</a>
+        <a href="11-testing-debugging.html">11. Testing dan Debugging</a>
+        <a href="12-recap.html">12. Recap</a>
+      </nav>
+    </aside>
+    <main class="content">
+      <section class="hero">
+        <p class="eyebrow">Bab 10</p>
+        <h1>Authentication dan RBAC</h1>
+        <p class="lead">Auth menjawab "siapa user ini?". RBAC menjawab "apakah user ini boleh melakukan aksi ini?". Project ini memakai JWT, refresh token, bcrypt, middleware, dan role check.</p>
+      </section>
+
+      <h2>Login flow</h2>
+      <ol>
+        <li>Handler membaca email dan password.</li>
+        <li>Service mencari user berdasarkan email.</li>
+        <li>Password dibandingkan dengan hash bcrypt.</li>
+        <li>Service membuat access token dan refresh token.</li>
+        <li>Refresh token di-hash lalu disimpan ke database.</li>
+        <li>Response mengirim user, access token, dan cookie refresh token.</li>
+      </ol>
+
+      <pre><code>if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password)) != nil {
+    return AuthResult{}, domain.NewError(domain.ErrInvalidCredential, "Invalid credentials")
+}</code></pre>
+
+      <h2>Access token dan refresh token</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Token</th>
+            <th>Fungsi</th>
+            <th>Umur default</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Access token</td>
+            <td>Dikirim di header <code>Authorization</code> untuk request API.</td>
+            <td><code>15m</code></td>
+          </tr>
+          <tr>
+            <td>Refresh token</td>
+            <td>Dipakai untuk mendapat access token baru.</td>
+            <td><code>7d</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Middleware auth</h2>
+      <p>Middleware memeriksa header:</p>
+      <pre><code>Authorization: Bearer &lt;accessToken&gt;</code></pre>
+      <p>Jika valid, user disimpan ke context Gin:</p>
+      <pre><code>c.Set("user", user)
+c.Next()</code></pre>
+
+      <h2>RBAC di route</h2>
+      <p>Beberapa endpoint dilindungi langsung di router:</p>
+      <pre><code>tasks.POST("", h.requireRole(domain.RoleProjectManager), h.createTask)
+projects.DELETE("/:id", h.requireRole(domain.RoleProductOwner), h.deleteProject)
+users.POST("", h.requireRole(domain.RoleAdmin), h.createUser)</code></pre>
+
+      <h2>RBAC di service</h2>
+      <p>Service juga mengecek role untuk aturan bisnis penting:</p>
+      <pre><code>if !HasRole(actor.Role, domain.RoleProjectManager) {
+    return domain.Task{}, domain.NewError(domain.ErrForbidden, "Access denied. Insufficient permissions.")
+}</code></pre>
+
+      <p>Memiliki pengecekan di service penting karena service bisa dipanggil dari handler, test, command, worker, atau interface lain di masa depan. Aturan bisnis tidak boleh hanya hidup di HTTP middleware.</p>
+
+      <h2>Refresh token rotation</h2>
+      <p>Saat refresh token dipakai, token lama dicabut dan token baru disimpan. Ini mengurangi risiko jika refresh token lama bocor.</p>
+      <pre><code>if err := s.store.RevokeRefreshToken(ctx, tokenHash); err != nil {
+    return AuthResult{}, fmt.Errorf("revoking refresh token: %w", err)
+}</code></pre>
+
+      <h2>Logout</h2>
+      <p>Logout mengecek apakah refresh token milik user, lalu mencabut token tersebut. Jika refresh token kosong, logout dianggap selesai.</p>
+
+      <div class="note">
+        <strong>Inti keamanan:</strong> password tidak pernah disimpan sebagai plain text. Refresh token juga tidak disimpan mentah, tetapi dalam bentuk hash.
+      </div>
+
+      <nav class="pager">
+        <a href="09-postgres-store.html">Bab 09</a>
+        <a href="11-testing-debugging.html">Lanjut Bab 11</a>
+      </nav>
+    </main>
+  </div>
+</body>
+</html>

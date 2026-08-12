@@ -48,8 +48,8 @@ func (h *Handler) updateTask(c *gin.Context) {
 
 func (h *Handler) updateTaskStatus(c *gin.Context) {
 	var input struct {
-		Status   domain.TaskStatus `json:"status"`
-		Position *int              `json:"position"`
+		Status   domain.TaskStatus `json:"status" binding:"required,oneof=backlog todo in_progress review done"`
+		Position *int              `json:"position" binding:"omitempty,gte=0"`
 	}
 	if !bindJSON(c, &input) {
 		return

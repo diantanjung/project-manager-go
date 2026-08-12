@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>11. Testing dan Debugging</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>Project Manager Go</h1>
+      <p>Bab 11</p>
+      <nav class="nav">
+        <a href="index.html">Daftar Bab</a>
+        <a href="01-gambaran-besar.html">01. Gambaran Besar</a>
+        <a href="02-setup-development.html">02. Setup Development</a>
+        <a href="03-struktur-project.html">03. Struktur Project</a>
+        <a href="04-konsep-dasar-go.html">04. Konsep Dasar Go</a>
+        <a href="05-domain-model.html">05. Domain Model</a>
+        <a href="06-service-dan-interface.html">06. Service dan Interface</a>
+        <a href="07-dependency-injection.html">07. Dependency Injection</a>
+        <a href="08-http-api.html">08. HTTP API</a>
+        <a href="09-postgres-store.html">09. PostgreSQL Store</a>
+        <a href="10-auth-rbac.html">10. Auth dan RBAC</a>
+        <a class="active" href="11-testing-debugging.html">11. Testing dan Debugging</a>
+        <a href="12-recap.html">12. Recap</a>
+      </nav>
+    </aside>
+    <main class="content">
+      <section class="hero">
+        <p class="eyebrow">Bab 11</p>
+        <h1>Testing dan Debugging</h1>
+        <p class="lead">Testing di Go sederhana: file test berada di sebelah kode dan diakhiri <code>_test.go</code>. Project ini punya test untuk auth, config, service, router, response, dan helper query.</p>
+      </section>
+
+      <h2>Menjalankan semua test</h2>
+      <pre><code>go test ./...</code></pre>
+      <p>Gunakan ini sebelum commit atau setelah mengubah behavior.</p>
+
+      <h2>Menjalankan package tertentu</h2>
+      <pre><code>go test ./internal/service
+go test ./internal/httpapi
+go test ./internal/auth</code></pre>
+
+      <h2>Verbose mode</h2>
+      <pre><code>go test -v ./internal/service</code></pre>
+      <p><code>-v</code> menampilkan nama test dan log. Ini berguna saat ingin melihat test mana yang berjalan.</p>
+
+      <h2>Menjalankan satu test</h2>
+      <pre><code>go test ./internal/service -run TestName</code></pre>
+      <p>Ganti <code>TestName</code> dengan nama test. Jika lupa nama test, gunakan <code>rg "func Test" internal/service</code>.</p>
+
+      <h2>Table-driven test</h2>
+      <p>Pola umum di Go adalah table-driven test: satu test function, banyak skenario.</p>
+      <pre><code>tests := []struct {
+    name string
+    input service.PageFilter
+    want service.PageFilter
+}{
+    {name: "default page", input: service.PageFilter{}, want: service.PageFilter{Page: 1, Limit: 10}},
+}
+
+for _, tt := range tests {
+    t.Run(tt.name, func(t *testing.T) {
+        got := service.NormalizePage(tt.input)
+        if got != tt.want {
+            t.Fatalf("got %#v, want %#v", got, tt.want)
+        }
+    })
+}</code></pre>
+
+      <h2>Fake store untuk service test</h2>
+      <p>Karena service menerima interface store, test bisa memakai fake store. Ini menghindari database sungguhan untuk test business logic.</p>
+
+      <h2>HTTP test</h2>
+      <p>Router Gin bisa dites dengan <code>httptest</code>. Polanya: buat router, buat request, rekam response.</p>
+      <pre><code>req := httptest.NewRequest(http.MethodGet, "/health", nil)
+rec := httptest.NewRecorder()
+router.ServeHTTP(rec, req)</code></pre>
+
+      <h2>Debugging runtime</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Gejala</th>
+            <th>Cara mulai debug</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Server gagal start</td>
+            <td>Cek <code>DATABASE_URL</code>, port, dan hasil <code>go run ./cmd/db ping</code>.</td>
+          </tr>
+          <tr>
+            <td>401 atau token invalid</td>
+            <td>Cek format header <code>Authorization: Bearer ...</code> dan secret JWT.</td>
+          </tr>
+          <tr>
+            <td>403 forbidden</td>
+            <td>Cek role user dan route yang memakai <code>requireRole</code>.</td>
+          </tr>
+          <tr>
+            <td>404 not found</td>
+            <td>Cek apakah store mengubah <code>sql.ErrNoRows</code> menjadi <code>domain.ErrNotFound</code>.</td>
+          </tr>
+          <tr>
+            <td>List kosong</td>
+            <td>Cek filter, pagination, dan access scope di helper <code>projectWhere</code> atau <code>taskWhere</code>.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Checklist sebelum mengubah fitur</h2>
+      <ol>
+        <li>Pahami endpoint dan service method yang terdampak.</li>
+        <li>Cek tipe input dan domain model.</li>
+        <li>Cek interface store apakah perlu method baru.</li>
+        <li>Tambahkan query di store PostgreSQL.</li>
+        <li>Tambahkan atau update migrasi jika schema berubah.</li>
+        <li>Tambahkan test pada layer yang berubah.</li>
+        <li>Jalankan <code>go test ./...</code>.</li>
+      </ol>
+
+      <nav class="pager">
+        <a href="10-auth-rbac.html">Bab 10</a>
+        <a href="12-recap.html">Lanjut Bab 12</a>
+      </nav>
+    </main>
+  </div>
+</body>
+</html>

@@ -88,5 +88,5 @@ func (h *Handler) uploadAvatar(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"url": "/uploads/" + name})
+	respond(c, http.StatusOK, gin.H{"url": "/uploads/" + name}, nil)
 }

@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>12. Recap</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>Project Manager Go</h1>
+      <p>Bab 12</p>
+      <nav class="nav">
+        <a href="index.html">Daftar Bab</a>
+        <a href="01-gambaran-besar.html">01. Gambaran Besar</a>
+        <a href="02-setup-development.html">02. Setup Development</a>
+        <a href="03-struktur-project.html">03. Struktur Project</a>
+        <a href="04-konsep-dasar-go.html">04. Konsep Dasar Go</a>
+        <a href="05-domain-model.html">05. Domain Model</a>
+        <a href="06-service-dan-interface.html">06. Service dan Interface</a>
+        <a href="07-dependency-injection.html">07. Dependency Injection</a>
+        <a href="08-http-api.html">08. HTTP API</a>
+        <a href="09-postgres-store.html">09. PostgreSQL Store</a>
+        <a href="10-auth-rbac.html">10. Auth dan RBAC</a>
+        <a href="11-testing-debugging.html">11. Testing dan Debugging</a>
+        <a class="active" href="12-recap.html">12. Recap</a>
+      </nav>
+    </aside>
+    <main class="content">
+      <section class="hero">
+        <p class="eyebrow">Bab 12</p>
+        <h1>Recap: Sudah dan Belum</h1>
+        <p class="lead">Bab terakhir merangkum apa yang sudah dibuat dalam folder tutorial, apa yang sudah dijelaskan, dan apa yang belum dibahas mendalam.</p>
+      </section>
+
+      <h2>Yang sudah dibuat</h2>
+      <ul>
+        <li>Folder <code>doc/tutorial</code> berisi dokumentasi HTML yang bisa dibuka di browser.</li>
+        <li>File <code>index.html</code> sebagai daftar isi.</li>
+        <li>Bab terpisah dari <code>01</code> sampai <code>12</code>.</li>
+        <li>File <code>style.css</code> agar semua bab punya tampilan konsisten.</li>
+      </ul>
+
+      <h2>Materi yang sudah dibahas</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Topik</th>
+            <th>Status</th>
+            <th>Bab</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Tahapan development project</td>
+            <td>Selesai untuk alur utama</td>
+            <td>01, 02, 03, 11</td>
+          </tr>
+          <tr>
+            <td>Struktur folder Go</td>
+            <td>Selesai</td>
+            <td>03</td>
+          </tr>
+          <tr>
+            <td>Package, struct, pointer, receiver, error, context</td>
+            <td>Selesai untuk dasar membaca project</td>
+            <td>04</td>
+          </tr>
+          <tr>
+            <td>Interface dan pemisahan service-store</td>
+            <td>Selesai</td>
+            <td>06</td>
+          </tr>
+          <tr>
+            <td>Generic</td>
+            <td>Selesai untuk contoh pagination</td>
+            <td>04, 05, 09</td>
+          </tr>
+          <tr>
+            <td>Dependency injection</td>
+            <td>Selesai untuk manual constructor injection</td>
+            <td>07</td>
+          </tr>
+          <tr>
+            <td>HTTP API dengan Gin</td>
+            <td>Selesai untuk routing, handler, middleware</td>
+            <td>08</td>
+          </tr>
+          <tr>
+            <td>PostgreSQL store dan migrasi</td>
+            <td>Selesai untuk konsep dan helper utama</td>
+            <td>09</td>
+          </tr>
+          <tr>
+            <td>Auth, JWT, refresh token, RBAC</td>
+            <td>Selesai untuk alur utama</td>
+            <td>10</td>
+          </tr>
+          <tr>
+            <td>Testing dan debugging</td>
+            <td>Selesai untuk workflow dasar</td>
+            <td>11</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Yang belum dibahas mendalam</h2>
+      <ul>
+        <li>Detail semua endpoint satu per satu beserta contoh payload lengkap.</li>
+        <li>Detail seluruh file migrasi dan relasi antar tabel secara diagram ERD.</li>
+        <li>Implementasi upload file secara mendalam.</li>
+        <li>Strategi deployment production, Docker, CI/CD, dan observability.</li>
+        <li>Benchmark dan performance profiling.</li>
+        <li>Security audit lengkap seperti rate limiting, CSRF, secret rotation, dan threat modeling.</li>
+      </ul>
+
+      <h2>Urutan belajar lanjutan</h2>
+      <ol>
+        <li>Jalankan project lokal sampai <code>/health</code> berhasil.</li>
+        <li>Baca <code>internal/domain</code> sambil mencocokkan dengan tabel migration.</li>
+        <li>Baca satu fitur lengkap, misalnya task: handler, service, interface, store, migration.</li>
+        <li>Tulis test kecil untuk satu service method.</li>
+        <li>Tambahkan field kecil di task sebagai latihan: domain, migration, input, store, handler, test.</li>
+      </ol>
+
+      <div class="recap">
+        <strong>Kesimpulan:</strong> project ini adalah contoh bagus untuk belajar backend Go karena memakai layer yang jelas, manual DI, interface untuk testability, generic untuk pagination, Gin untuk HTTP, dan PostgreSQL sebagai persistence nyata.
+      </div>
+
+      <nav class="pager">
+        <a href="11-testing-debugging.html">Bab 11</a>
+        <a href="index.html">Kembali ke Daftar Bab</a>
+      </nav>
+    </main>
+  </div>
+</body>
+</html>

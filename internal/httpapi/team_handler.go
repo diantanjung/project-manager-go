@@ -14,11 +14,11 @@ func (h *Handler) listTeams(c *gin.Context) {
 }
 
 func (h *Handler) createTeam(c *gin.Context) {
-	var input service.TeamInput
-	if !bindJSON(c, &input) {
+	var request createTeamRequest
+	if !bindJSON(c, &request) {
 		return
 	}
-	team, err := h.service.CreateTeam(c.Request.Context(), currentUser(c), input)
+	team, err := h.service.CreateTeam(c.Request.Context(), currentUser(c), request.input())
 	respond(c, http.StatusCreated, team, err)
 }
 
