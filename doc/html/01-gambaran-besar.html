@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>01. Gambaran Besar</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>Project Manager Go</h1>
+      <p>Bab 01</p>
+      <nav class="nav">
+        <a href="index.html">Daftar Bab</a>
+        <a class="active" href="01-gambaran-besar.html">01. Gambaran Besar</a>
+        <a href="02-setup-development.html">02. Setup Development</a>
+        <a href="03-struktur-project.html">03. Struktur Project</a>
+        <a href="04-konsep-dasar-go.html">04. Konsep Dasar Go</a>
+        <a href="05-domain-model.html">05. Domain Model</a>
+        <a href="06-service-dan-interface.html">06. Service dan Interface</a>
+        <a href="07-dependency-injection.html">07. Dependency Injection</a>
+        <a href="08-http-api.html">08. HTTP API</a>
+        <a href="09-postgres-store.html">09. PostgreSQL Store</a>
+        <a href="10-auth-rbac.html">10. Auth dan RBAC</a>
+        <a href="11-testing-debugging.html">11. Testing dan Debugging</a>
+        <a href="12-recap.html">12. Recap</a>
+      </nav>
+    </aside>
+    <main class="content">
+      <section class="hero">
+        <p class="eyebrow">Bab 01</p>
+        <h1>Gambaran Besar Project</h1>
+        <p class="lead">Project ini adalah backend REST API untuk aplikasi manajemen project. Ia mengurus user, login, role, team, project, task, komentar, attachment, notifikasi, dan penyimpanan PostgreSQL.</p>
+      </section>
+
+      <h2>Masalah yang diselesaikan</h2>
+      <p>Aplikasi project manager biasanya punya alur seperti ini: user login, user membuat team, project manager membuat project, task dibuat untuk project, anggota team diberi tugas, lalu sistem mengirim notifikasi. Backend ini menyimpan semua data itu dan mengatur siapa boleh melakukan apa.</p>
+
+      <h2>Teknologi utama</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Teknologi</th>
+            <th>Peran</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Go</td>
+            <td>Bahasa backend. Cocok untuk API karena sederhana, cepat, dan punya standard library kuat.</td>
+          </tr>
+          <tr>
+            <td>Gin</td>
+            <td>HTTP router dan middleware. Dipakai di <code>internal/httpapi</code>.</td>
+          </tr>
+          <tr>
+            <td>PostgreSQL</td>
+            <td>Database utama. Skema dibuat lewat file SQL di <code>migrations</code>.</td>
+          </tr>
+          <tr>
+            <td>sqlx + pgx</td>
+            <td>Akses database. <code>sqlx</code> memudahkan scan row ke struct, <code>pgx</code> menjadi driver PostgreSQL.</td>
+          </tr>
+          <tr>
+            <td>JWT</td>
+            <td>Access token dan refresh token untuk auth.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Alur request</h2>
+      <p>Bayangkan client memanggil endpoint <code>POST /api/tasks</code>. Request berjalan melalui layer berikut:</p>
+      <ol>
+        <li><code>internal/httpapi/router.go</code> menentukan route dan middleware.</li>
+        <li><code>internal/httpapi/task_handler.go</code> membaca JSON request dan mengambil user dari context Gin.</li>
+        <li><code>internal/service/task_service.go</code> menjalankan validasi dan aturan role.</li>
+        <li><code>internal/service/store_interfaces.go</code> mendefinisikan kontrak method database yang dibutuhkan service.</li>
+        <li><code>internal/store/postgres/task_store.go</code> menjalankan query PostgreSQL.</li>
+        <li><code>internal/httpapi/response.go</code> mengubah hasil atau error menjadi response JSON.</li>
+      </ol>
+
+      <pre><code>Client
+  -> Gin Router
+  -> Handler
+  -> Service
+  -> Store interface
+  -> PostgreSQL implementation
+  -> JSON response</code></pre>
+
+      <h2>Konsep Go yang akan muncul</h2>
+      <ul>
+        <li><strong>Package:</strong> setiap folder Go adalah unit organisasi kode.</li>
+        <li><strong>Struct:</strong> dipakai untuk model data seperti <code>domain.Task</code> dan konfigurasi seperti <code>config.Config</code>.</li>
+        <li><strong>Interface:</strong> dipakai oleh service untuk menyatakan kebutuhan ke layer store.</li>
+        <li><strong>Pointer:</strong> field seperti <code>*string</code> menunjukkan data opsional atau nullable.</li>
+        <li><strong>Generic:</strong> <code>domain.Paginated[T]</code> bisa dipakai untuk banyak tipe data.</li>
+        <li><strong>Error wrapping:</strong> error diberi konteks dengan <code>fmt.Errorf("...: %w", err)</code>.</li>
+        <li><strong>Context:</strong> <code>context.Context</code> membawa cancellation dan deadline dari HTTP request ke database.</li>
+      </ul>
+
+      <div class="recap">
+        <strong>Target setelah bab ini:</strong> kamu tahu backend ini dibagi menjadi beberapa layer, dan bisa menjelaskan jalur data dari HTTP request sampai database.
+      </div>
+
+      <nav class="pager">
+        <a href="index.html">Kembali</a>
+        <a href="02-setup-development.html">Lanjut Bab 02</a>
+      </nav>
+    </main>
+  </div>
+</body>
+</html>

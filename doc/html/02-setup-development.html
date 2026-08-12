@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>02. Setup Development</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>Project Manager Go</h1>
+      <p>Bab 02</p>
+      <nav class="nav">
+        <a href="index.html">Daftar Bab</a>
+        <a href="01-gambaran-besar.html">01. Gambaran Besar</a>
+        <a class="active" href="02-setup-development.html">02. Setup Development</a>
+        <a href="03-struktur-project.html">03. Struktur Project</a>
+        <a href="04-konsep-dasar-go.html">04. Konsep Dasar Go</a>
+        <a href="05-domain-model.html">05. Domain Model</a>
+        <a href="06-service-dan-interface.html">06. Service dan Interface</a>
+        <a href="07-dependency-injection.html">07. Dependency Injection</a>
+        <a href="08-http-api.html">08. HTTP API</a>
+        <a href="09-postgres-store.html">09. PostgreSQL Store</a>
+        <a href="10-auth-rbac.html">10. Auth dan RBAC</a>
+        <a href="11-testing-debugging.html">11. Testing dan Debugging</a>
+        <a href="12-recap.html">12. Recap</a>
+      </nav>
+    </aside>
+    <main class="content">
+      <section class="hero">
+        <p class="eyebrow">Bab 02</p>
+        <h1>Setup Development</h1>
+        <p class="lead">Bab ini menjelaskan langkah menjalankan project secara lokal: dependency Go, konfigurasi environment, database, migrasi, seed, server, dan test.</p>
+      </section>
+
+      <h2>Prasyarat</h2>
+      <ul>
+        <li>Go sesuai versi di <code>go.mod</code>: <code>go 1.26.5</code>.</li>
+        <li>PostgreSQL berjalan lokal atau remote.</li>
+        <li>Database URL dalam bentuk <code>postgres://user:password@host:port/dbname?sslmode=disable</code>.</li>
+      </ul>
+
+      <h2>Environment</h2>
+      <p>Server membaca konfigurasi lewat <code>internal/config/config.go</code>. File <code>.env</code> akan diload jika ada. Variabel paling penting adalah <code>DATABASE_URL</code>.</p>
+
+      <pre><code>DATABASE_URL=postgres://postgres:postgres@localhost:5432/project_manager?sslmode=disable
+PORT=3000
+FRONTEND_URL=http://localhost:5173
+JWT_SECRET=replace-me
+JWT_REFRESH_SECRET=replace-me-too</code></pre>
+
+      <p>Di kode, nilai fallback diberikan oleh helper <code>getenv</code>:</p>
+      <pre><code>func getenv(key string, fallback string) string {
+    value := os.Getenv(key)
+    if value == "" {
+        return fallback
+    }
+    return value
+}</code></pre>
+
+      <h2>Install dependency</h2>
+      <pre><code>go mod download</code></pre>
+      <p>Perintah ini membaca <code>go.mod</code> dan <code>go.sum</code>, lalu mengambil dependency seperti Gin, sqlx, migrate, JWT, dan bcrypt.</p>
+
+      <h2>Database command</h2>
+      <p>Project punya command helper di <code>cmd/db</code>. Dari README, urutan lokal yang umum adalah:</p>
+      <pre><code>go run ./cmd/db ping
+go run ./cmd/db migrate-up
+go run ./cmd/db seed</code></pre>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Command</th>
+            <th>Tujuan</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>ping</code></td>
+            <td>Memastikan aplikasi bisa connect ke PostgreSQL.</td>
+          </tr>
+          <tr>
+            <td><code>migrate-up</code></td>
+            <td>Menjalankan file SQL <code>*.up.sql</code> di folder <code>migrations</code>.</td>
+          </tr>
+          <tr>
+            <td><code>seed</code></td>
+            <td>Mengisi data demo dari <code>cmd/db/demo_seed.sql</code>.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Run server</h2>
+      <pre><code>go run ./cmd/server</code></pre>
+      <p>Entry point server ada di <code>cmd/server/main.go</code>. Fungsi <code>run</code> melakukan wiring: load config, buka database, buat token manager, buat service, buat router, lalu start HTTP server.</p>
+
+      <pre><code>svc := service.New(postgres.New(db), tokenManager)
+router := httpapi.NewRouter(cfg, svc)</code></pre>
+
+      <h2>Cek API</h2>
+      <pre><code>curl http://localhost:3000/
+curl http://localhost:3000/health</code></pre>
+
+      <h2>Run test</h2>
+      <pre><code>go test ./...</code></pre>
+      <p><code>./...</code> berarti semua package di module ini. Ini cara cepat memastikan perubahan tidak merusak package lain.</p>
+
+      <div class="warning">
+        <strong>Kesalahan umum:</strong> kalau server gagal dengan pesan <code>DATABASE_URL is required</code>, berarti environment belum terbaca. Pastikan <code>.env</code> berada di root project saat menjalankan command.
+      </div>
+
+      <nav class="pager">
+        <a href="01-gambaran-besar.html">Bab 01</a>
+        <a href="03-struktur-project.html">Lanjut Bab 03</a>
+      </nav>
+    </main>
+  </div>
+</body>
+</html>

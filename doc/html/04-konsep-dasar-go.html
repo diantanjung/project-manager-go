@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>04. Konsep Dasar Go</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>Project Manager Go</h1>
+      <p>Bab 04</p>
+      <nav class="nav">
+        <a href="index.html">Daftar Bab</a>
+        <a href="01-gambaran-besar.html">01. Gambaran Besar</a>
+        <a href="02-setup-development.html">02. Setup Development</a>
+        <a href="03-struktur-project.html">03. Struktur Project</a>
+        <a class="active" href="04-konsep-dasar-go.html">04. Konsep Dasar Go</a>
+        <a href="05-domain-model.html">05. Domain Model</a>
+        <a href="06-service-dan-interface.html">06. Service dan Interface</a>
+        <a href="07-dependency-injection.html">07. Dependency Injection</a>
+        <a href="08-http-api.html">08. HTTP API</a>
+        <a href="09-postgres-store.html">09. PostgreSQL Store</a>
+        <a href="10-auth-rbac.html">10. Auth dan RBAC</a>
+        <a href="11-testing-debugging.html">11. Testing dan Debugging</a>
+        <a href="12-recap.html">12. Recap</a>
+      </nav>
+    </aside>
+    <main class="content">
+      <section class="hero">
+        <p class="eyebrow">Bab 04</p>
+        <h1>Konsep Dasar Go di Project Ini</h1>
+        <p class="lead">Bab ini bukan teori kosong. Setiap konsep dijelaskan dengan contoh yang muncul di project: package, struct, pointer, interface, generic, error, context, dan method receiver.</p>
+      </section>
+
+      <h2>Package</h2>
+      <p>Setiap file Go dimulai dengan nama package. Package adalah unit organisasi kode.</p>
+      <pre><code>package service</code></pre>
+      <p>File di folder <code>internal/service</code> memakai package <code>service</code>. Package lain menggunakannya lewat import:</p>
+      <pre><code>import "project-manager-go/internal/service"</code></pre>
+
+      <h2>Struct</h2>
+      <p>Struct adalah kumpulan field. Contoh dari <code>internal/config/config.go</code>:</p>
+      <pre><code>type Config struct {
+    NodeEnv     string
+    Port        int
+    DatabaseURL string
+    FrontendURL string
+}</code></pre>
+      <p>Struct cocok untuk model data, konfigurasi, request input, response, dan object service.</p>
+
+      <h2>Tag struct</h2>
+      <p>Di domain, field memiliki tag seperti <code>json</code> dan <code>db</code>:</p>
+      <pre><code>type Task struct {
+    ID          int    `json:"id" db:"id"`
+    Title       string `json:"title" db:"title"`
+    ProjectID   int    `json:"projectId" db:"project_id"`
+}</code></pre>
+      <p><code>json</code> dipakai saat encode/decode HTTP JSON. <code>db</code> dipakai oleh sqlx untuk mapping kolom database ke field struct.</p>
+
+      <h2>Pointer untuk nilai opsional</h2>
+      <p>Beberapa field memakai pointer seperti <code>*string</code> dan <code>*time.Time</code>.</p>
+      <pre><code>Description *string    `json:"description" db:"description"`
+CreatedAt   *time.Time `json:"createdAt" db:"created_at"`</code></pre>
+      <p>Artinya field bisa bernilai <code>nil</code>. Ini berguna untuk kolom database yang boleh <code>NULL</code>, atau input patch yang boleh dikirim sebagian.</p>
+
+      <h2>Method receiver</h2>
+      <p>Method adalah function yang menempel pada tipe. Contoh dari <code>Service</code>:</p>
+      <pre><code>func (s *Service) CreateTask(ctx context.Context, actor domain.AuthUser, input TaskInput) (domain.Task, error) {
+    // ...
+}</code></pre>
+      <p><code>(s *Service)</code> berarti method ini milik pointer ke <code>Service</code>. Pointer receiver dipakai karena method memakai dependency di dalam service dan menghindari copy struct.</p>
+
+      <h2>Interface</h2>
+      <p>Interface menyatakan perilaku yang dibutuhkan, bukan implementasinya. Di <code>internal/service/store_interfaces.go</code>:</p>
+      <pre><code>type TaskStore interface {
+    CreateTask(ctx context.Context, input TaskInput) (domain.Task, error)
+    ListTasks(ctx context.Context, user domain.AuthUser, filter TaskFilter) (domain.Paginated[domain.Task], error)
+}</code></pre>
+      <p>Service tidak peduli apakah data berasal dari PostgreSQL, memory fake, atau service lain. Selama tipe tersebut punya method yang cocok, ia memenuhi interface.</p>
+
+      <h2>Generic</h2>
+      <p>Generic memungkinkan tipe bekerja untuk banyak jenis data tanpa menghilangkan type safety.</p>
+      <pre><code>type Paginated[T any] struct {
+    Data       []T
+    Pagination Pagination
+}</code></pre>
+      <p><code>T</code> adalah placeholder tipe. Maka project bisa punya <code>Paginated[domain.User]</code>, <code>Paginated[domain.Project]</code>, dan <code>Paginated[domain.Task]</code>.</p>
+
+      <h2>Error</h2>
+      <p>Go mengembalikan error sebagai nilai biasa. Contoh:</p>
+      <pre><code>db, err := postgres.Open(ctx, cfg.DatabaseURL)
+if err != nil {
+    return err
+}</code></pre>
+      <p>Kalau ingin menambah konteks, project memakai wrapping:</p>
+      <pre><code>return fmt.Errorf("saving refresh token: %w", err)</code></pre>
+      <p><code>%w</code> membuat error asli tetap bisa diperiksa dengan <code>errors.Is</code>.</p>
+
+      <h2>Context</h2>
+      <p><code>context.Context</code> membawa sinyal cancel, timeout, dan metadata request. Handler mengambil context dari HTTP request lalu meneruskannya sampai database.</p>
+      <pre><code>result, err := h.service.ListTasks(c.Request.Context(), currentUser(c), filter)</code></pre>
+
+      <h2>Slice dan map</h2>
+      <p>Slice adalah list dinamis, misalnya <code>[]domain.TeamMember</code>. Map adalah key-value, sering dipakai untuk whitelist nilai sort:</p>
+      <pre><code>allowed := map[string]string{
+    "createdAt": "created_at",
+    "title":     "title",
+}</code></pre>
+
+      <div class="recap">
+        <strong>Target setelah bab ini:</strong> kamu bisa membaca bentuk dasar kode Go di project ini dan tidak panik saat melihat pointer, interface, generic, atau error return.
+      </div>
+
+      <nav class="pager">
+        <a href="03-struktur-project.html">Bab 03</a>
+        <a href="05-domain-model.html">Lanjut Bab 05</a>
+      </nav>
+    </main>
+  </div>
+</body>
+</html>

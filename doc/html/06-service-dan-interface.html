@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>06. Service dan Interface</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>Project Manager Go</h1>
+      <p>Bab 06</p>
+      <nav class="nav">
+        <a href="index.html">Daftar Bab</a>
+        <a href="01-gambaran-besar.html">01. Gambaran Besar</a>
+        <a href="02-setup-development.html">02. Setup Development</a>
+        <a href="03-struktur-project.html">03. Struktur Project</a>
+        <a href="04-konsep-dasar-go.html">04. Konsep Dasar Go</a>
+        <a href="05-domain-model.html">05. Domain Model</a>
+        <a class="active" href="06-service-dan-interface.html">06. Service dan Interface</a>
+        <a href="07-dependency-injection.html">07. Dependency Injection</a>
+        <a href="08-http-api.html">08. HTTP API</a>
+        <a href="09-postgres-store.html">09. PostgreSQL Store</a>
+        <a href="10-auth-rbac.html">10. Auth dan RBAC</a>
+        <a href="11-testing-debugging.html">11. Testing dan Debugging</a>
+        <a href="12-recap.html">12. Recap</a>
+      </nav>
+    </aside>
+    <main class="content">
+      <section class="hero">
+        <p class="eyebrow">Bab 06</p>
+        <h1>Service dan Interface</h1>
+        <p class="lead">Service adalah tempat business logic. Interface adalah kontrak yang membuat service tidak bergantung langsung ke database PostgreSQL.</p>
+      </section>
+
+      <h2>Isi struct Service</h2>
+      <pre><code>type Service struct {
+    store  Store
+    tokens auth.TokenManager
+    now    func() time.Time
+}</code></pre>
+      <p><code>store</code> adalah dependency untuk data. <code>tokens</code> mengurus JWT. <code>now</code> disimpan sebagai function supaya test bisa mengontrol waktu jika diperlukan.</p>
+
+      <h2>Constructor service</h2>
+      <pre><code>func New(store Store, tokens auth.TokenManager) *Service {
+    return &Service{
+        store:  store,
+        tokens: tokens,
+        now:    time.Now,
+    }
+}</code></pre>
+      <p>Constructor menerima dependency dari luar. Ini membuat service eksplisit dan mudah dites.</p>
+
+      <h2>Interface Store</h2>
+      <p>Di Go, interface sebaiknya didefinisikan di tempat yang memakai interface itu. Project ini mengikuti pola tersebut: interface store ada di package <code>service</code>, bukan di package <code>postgres</code>.</p>
+
+      <pre><code>type Store interface {
+    UserStore
+    RefreshTokenStore
+    TeamStore
+    ProjectStore
+    ProjectTeamStore
+    TaskStore
+    TaskAssignmentStore
+    CommentStore
+    AttachmentStore
+    NotificationStore
+}</code></pre>
+
+      <p><code>Store</code> adalah interface gabungan. Ia menyusun interface kecil seperti <code>UserStore</code>, <code>TaskStore</code>, dan <code>NotificationStore</code>.</p>
+
+      <h2>Contoh business logic</h2>
+      <pre><code>func (s *Service) CreateTask(ctx context.Context, actor domain.AuthUser, input TaskInput) (domain.Task, error) {
+    if !HasRole(actor.Role, domain.RoleProjectManager) {
+        return domain.Task{}, domain.NewError(domain.ErrForbidden, "Access denied. Insufficient permissions.")
+    }
+    if strings.TrimSpace(input.Title) == "" || len(input.Title) < 2 {
+        return domain.Task{}, domain.NewError(domain.ErrValidation, "Task title must be at least 2 characters")
+    }
+    if input.Status == nil {
+        status := domain.TaskStatusBacklog
+        input.Status = &status
+    }
+    input.CreatorID = actor.ID
+    return s.store.CreateTask(ctx, input)
+}</code></pre>
+
+      <p>Perhatikan pembagian tanggung jawab:</p>
+      <ul>
+        <li>Service mengecek role.</li>
+        <li>Service memvalidasi title.</li>
+        <li>Service memberi default status.</li>
+        <li>Store menyimpan data.</li>
+      </ul>
+
+      <h2>Kenapa return struct kosong saat error?</h2>
+      <p>Signature <code>(domain.Task, error)</code> mengikuti pola Go. Jika error tidak nil, pemanggil mengabaikan nilai pertama. Karena itu service mengembalikan <code>domain.Task{}</code> sebagai zero value.</p>
+
+      <h2>Input type</h2>
+      <p>Service punya tipe input sendiri, misalnya <code>CreateUserInput</code>, <code>TaskInput</code>, dan <code>ProjectFilter</code>. Ini mencegah handler langsung memakai model database sebagai input mentah.</p>
+
+      <h2>Keuntungan interface untuk test</h2>
+      <p>Karena service hanya butuh interface, test bisa membuat fake store tanpa PostgreSQL. Inilah alasan utama dependency inversion di project ini.</p>
+
+      <pre><code>type fakeStore struct {
+    createdTask domain.Task
+}
+
+func (f *fakeStore) CreateTask(ctx context.Context, input service.TaskInput) (domain.Task, error) {
+    return f.createdTask, nil
+}</code></pre>
+
+      <div class="note">
+        <strong>Inti bab:</strong> service memegang aturan bisnis. Store memegang detail data. Interface menjadi batas kontrak di antara keduanya.
+      </div>
+
+      <nav class="pager">
+        <a href="05-domain-model.html">Bab 05</a>
+        <a href="07-dependency-injection.html">Lanjut Bab 07</a>
+      </nav>
+    </main>
+  </div>
+</body>
+</html>

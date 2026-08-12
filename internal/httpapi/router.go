@@ -62,15 +62,15 @@ func (h *Handler) mountAPI(api *gin.RouterGroup) {
 }
 
 func (h *Handler) root(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "Welcome to Project Manager API"})
+	respond(c, http.StatusOK, gin.H{"message": "Welcome to Project Manager API"}, nil)
 }
 
 func (h *Handler) health(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
+	respond(c, http.StatusOK, gin.H{
 		"status":    "ok",
 		"timestamp": time.Now().UTC().Format(time.RFC3339Nano),
 		"env":       h.cfg.NodeEnv,
-	})
+	}, nil)
 }
 
 func (h *Handler) mountUserRoutes(protected *gin.RouterGroup) {

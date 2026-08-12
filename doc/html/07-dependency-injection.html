@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>07. Dependency Injection</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>Project Manager Go</h1>
+      <p>Bab 07</p>
+      <nav class="nav">
+        <a href="index.html">Daftar Bab</a>
+        <a href="01-gambaran-besar.html">01. Gambaran Besar</a>
+        <a href="02-setup-development.html">02. Setup Development</a>
+        <a href="03-struktur-project.html">03. Struktur Project</a>
+        <a href="04-konsep-dasar-go.html">04. Konsep Dasar Go</a>
+        <a href="05-domain-model.html">05. Domain Model</a>
+        <a href="06-service-dan-interface.html">06. Service dan Interface</a>
+        <a class="active" href="07-dependency-injection.html">07. Dependency Injection</a>
+        <a href="08-http-api.html">08. HTTP API</a>
+        <a href="09-postgres-store.html">09. PostgreSQL Store</a>
+        <a href="10-auth-rbac.html">10. Auth dan RBAC</a>
+        <a href="11-testing-debugging.html">11. Testing dan Debugging</a>
+        <a href="12-recap.html">12. Recap</a>
+      </nav>
+    </aside>
+    <main class="content">
+      <section class="hero">
+        <p class="eyebrow">Bab 07</p>
+        <h1>Dependency Injection</h1>
+        <p class="lead">Dependency injection berarti dependency diberikan dari luar, bukan dibuat diam-diam di dalam object. Project ini memakai manual constructor injection, pendekatan yang sederhana dan idiomatik untuk ukuran project ini.</p>
+      </section>
+
+      <h2>Tanpa DI</h2>
+      <p>Contoh yang sebaiknya dihindari:</p>
+      <pre><code>func NewService() *Service {
+    db := openDatabaseFromEnv()
+    store := postgres.New(db)
+    return &Service{store: store}
+}</code></pre>
+      <p>Masalahnya: service jadi tahu cara membuka database, sulit dites, dan bergantung pada environment.</p>
+
+      <h2>Dengan DI di project ini</h2>
+      <p>Dependency dibuat di composition root, yaitu <code>cmd/server/main.go</code>:</p>
+      <pre><code>db, err := postgres.Open(ctx, cfg.DatabaseURL)
+if err != nil {
+    return err
+}
+
+tokenManager := auth.TokenManager{
+    AccessSecret:  []byte(cfg.JWTSecret),
+    RefreshSecret: []byte(cfg.JWTRefreshSecret),
+    AccessTTL:     cfg.JWTExpiresIn,
+    RefreshTTL:    cfg.JWTRefreshExpiresIn,
+}
+
+svc := service.New(postgres.New(db), tokenManager)
+router := httpapi.NewRouter(cfg, svc)</code></pre>
+
+      <h2>Composition root</h2>
+      <p>Composition root adalah tempat semua dependency konkret disusun. Di project ini tempatnya <code>run</code> di <code>cmd/server/main.go</code>. Di sana boleh ada detail konkret seperti PostgreSQL, config, token manager, dan router.</p>
+
+      <h2>Kenapa tidak pakai DI library?</h2>
+      <p>Untuk project ini, manual DI masih terbaca. Dependency utamanya hanya config, database, token manager, service, dan router. Library seperti Wire, Fx, atau container generic berguna jika dependency graph sudah jauh lebih besar atau butuh lifecycle management kompleks.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Pendekatan</th>
+            <th>Kapan cocok</th>
+            <th>Tradeoff</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Manual constructor injection</td>
+            <td>Project kecil sampai menengah, graph masih jelas.</td>
+            <td>Wiring manual bertambah saat service makin banyak.</td>
+          </tr>
+          <tr>
+            <td>google/wire</td>
+            <td>Ingin compile-time DI dan tidak keberatan code generation.</td>
+            <td>Perlu file provider dan generate code.</td>
+          </tr>
+          <tr>
+            <td>uber/fx</td>
+            <td>Aplikasi besar dengan lifecycle hooks.</td>
+            <td>Lebih banyak konsep dan reflection.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>DI dan interface</h2>
+      <p>DI menjadi kuat saat digabung dengan interface. <code>service.New</code> menerima <code>Store</code>, bukan <code>*postgres.Store</code>. Namun saat runtime, kita memberi <code>postgres.New(db)</code>.</p>
+      <pre><code>func New(store Store, tokens auth.TokenManager) *Service</code></pre>
+
+      <h2>DI dan testing</h2>
+      <p>Pada test service, kita bisa memberi store palsu. Pada test HTTP, kita bisa memberi service dengan store palsu, lalu memanggil router tanpa database sungguhan.</p>
+
+      <div class="note">
+        <strong>Prinsip praktis:</strong> buat dependency konkret di pinggir aplikasi, lalu kirim ke layer tengah lewat constructor. Jangan membuka database atau membaca env dari dalam service.
+      </div>
+
+      <nav class="pager">
+        <a href="06-service-dan-interface.html">Bab 06</a>
+        <a href="08-http-api.html">Lanjut Bab 08</a>
+      </nav>
+    </main>
+  </div>
+</body>
+</html>

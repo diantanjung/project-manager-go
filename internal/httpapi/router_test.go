@@ -75,14 +75,16 @@ func TestAuthMeRoutesReturnCurrentUser(t *testing.T) {
 				t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 			}
 
-			var got domain.User
+			var got struct {
+				Data domain.User `json:"data"`
+			}
 			if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 				t.Fatalf("decoding response: %v", err)
 			}
-			if got.ID != user.ID || got.Email != user.Email || got.Role != user.Role {
-				t.Fatalf("user = %+v, want id/email/role from %+v", got, user)
+			if got.Data.ID != user.ID || got.Data.Email != user.Email || got.Data.Role != user.Role {
+				t.Fatalf("user = %+v, want id/email/role from %+v", got.Data, user)
 			}
-			if got.PasswordHash != "" {
+			if got.Data.PasswordHash != "" {
 				t.Fatalf("password hash leaked in response")
 			}
 		})

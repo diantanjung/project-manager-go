@@ -29,7 +29,7 @@ func (h *Handler) login(c *gin.Context) {
 		return
 	}
 	setRefreshCookie(c, h.cfg, result.RefreshToken)
-	c.JSON(http.StatusOK, gin.H{"user": result.User, "accessToken": result.AccessToken})
+	respond(c, http.StatusOK, gin.H{"user": result.User, "accessToken": result.AccessToken}, nil)
 }
 
 func (h *Handler) refresh(c *gin.Context) {
@@ -45,7 +45,7 @@ func (h *Handler) refresh(c *gin.Context) {
 		return
 	}
 	setRefreshCookie(c, h.cfg, result.RefreshToken)
-	c.JSON(http.StatusOK, gin.H{"accessToken": result.AccessToken})
+	respond(c, http.StatusOK, gin.H{"accessToken": result.AccessToken}, nil)
 }
 
 func (h *Handler) me(c *gin.Context) {

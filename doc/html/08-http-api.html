@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>08. HTTP API</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>Project Manager Go</h1>
+      <p>Bab 08</p>
+      <nav class="nav">
+        <a href="index.html">Daftar Bab</a>
+        <a href="01-gambaran-besar.html">01. Gambaran Besar</a>
+        <a href="02-setup-development.html">02. Setup Development</a>
+        <a href="03-struktur-project.html">03. Struktur Project</a>
+        <a href="04-konsep-dasar-go.html">04. Konsep Dasar Go</a>
+        <a href="05-domain-model.html">05. Domain Model</a>
+        <a href="06-service-dan-interface.html">06. Service dan Interface</a>
+        <a href="07-dependency-injection.html">07. Dependency Injection</a>
+        <a class="active" href="08-http-api.html">08. HTTP API</a>
+        <a href="09-postgres-store.html">09. PostgreSQL Store</a>
+        <a href="10-auth-rbac.html">10. Auth dan RBAC</a>
+        <a href="11-testing-debugging.html">11. Testing dan Debugging</a>
+        <a href="12-recap.html">12. Recap</a>
+      </nav>
+    </aside>
+    <main class="content">
+      <section class="hero">
+        <p class="eyebrow">Bab 08</p>
+        <h1>HTTP API dengan Gin</h1>
+        <p class="lead">Layer HTTP menerima request, memvalidasi bentuk input dasar, memanggil service, lalu mengirim response JSON. Business logic tetap berada di service.</p>
+      </section>
+
+      <h2>Router</h2>
+      <p>Router dibuat di <code>internal/httpapi/router.go</code>:</p>
+      <pre><code>func NewRouter(cfg config.Config, svc *service.Service) *gin.Engine {
+    router := gin.New()
+    router.Use(gin.Logger(), gin.Recovery())
+    router.Use(cors.New(cors.Config{
+        AllowOrigins: []string{cfg.FrontendURL},
+    }))
+
+    h := &Handler{service: svc, cfg: cfg}
+    router.GET("/", h.root)
+    router.GET("/health", h.health)
+    h.mountAPI(router.Group("/api"))
+    h.mountAPI(router.Group("/api/v1"))
+    return router
+}</code></pre>
+
+      <h2>Handler struct</h2>
+      <pre><code>type Handler struct {
+    service *service.Service
+    cfg     config.Config
+}</code></pre>
+      <p>Handler menyimpan dependency yang dibutuhkan oleh HTTP layer. Handler tidak membuat service sendiri, melainkan menerima service dari router.</p>
+
+      <h2>Route group</h2>
+      <p>Gin route group membantu mengelompokkan endpoint. Project ini mount endpoint di dua prefix: <code>/api</code> dan <code>/api/v1</code>.</p>
+      <pre><code>protected := api.Group("")
+protected.Use(h.authRequired())
+
+h.mountUserRoutes(protected)
+h.mountTeamRoutes(protected)
+h.mountProjectRoutes(protected)
+h.mountTaskRoutes(protected)</code></pre>
+
+      <h2>Contoh handler list task</h2>
+      <pre><code>func (h *Handler) listTasks(c *gin.Context) {
+    result, err := h.service.ListTasks(c.Request.Context(), currentUser(c), service.TaskFilter{
+        PageFilter: pageFilter(c),
+        Search:     c.Query("search"),
+        ProjectID:  queryIntPtr(c, "projectId"),
+        Status:     parseTaskStatus(c.Query("status")),
+        Priority:   parseTaskPriority(c.Query("priority")),
+        AssigneeID: queryIntPtr(c, "assigneeId"),
+        SortBy:     c.DefaultQuery("sortBy", "createdAt"),
+        Order:      c.DefaultQuery("order", "desc"),
+    })
+    respond(c, http.StatusOK, result, err)
+}</code></pre>
+
+      <p>Yang dilakukan handler:</p>
+      <ul>
+        <li>Mengambil query parameter.</li>
+        <li>Mengubah query string menjadi filter service.</li>
+        <li>Mengambil user dari context.</li>
+        <li>Meneruskan request context ke service.</li>
+        <li>Memanggil helper response.</li>
+      </ul>
+
+      <h2>Bind JSON</h2>
+      <p>Untuk endpoint create atau update, handler membaca body JSON ke struct input.</p>
+      <pre><code>var input service.TaskInput
+if !bindJSON(c, &input) {
+    return
+}
+task, err := h.service.CreateTask(c.Request.Context(), currentUser(c), input)</code></pre>
+
+      <h2>Middleware</h2>
+      <p>Middleware auth membaca header <code>Authorization: Bearer token</code>, memverifikasi token lewat service, lalu menyimpan user ke context Gin.</p>
+      <pre><code>user, err := h.service.Authenticate(parts[1])
+if err != nil {
+    respondError(c, domain.NewError(domain.ErrInvalidRefresh, "Invalid token"))
+    c.Abort()
+    return
+}
+c.Set("user", user)
+c.Next()</code></pre>
+
+      <div class="note">
+        <strong>Batas tanggung jawab:</strong> handler boleh tahu HTTP dan Gin. Service tidak perlu tahu header, route, cookie, atau status code.
+      </div>
+
+      <nav class="pager">
+        <a href="07-dependency-injection.html">Bab 07</a>
+        <a href="09-postgres-store.html">Lanjut Bab 09</a>
+      </nav>
+    </main>
+  </div>
+</body>
+</html>

@@ -28,7 +28,7 @@ func (s *Service) CurrentUser(ctx context.Context, authUser domain.AuthUser) (do
 }
 
 func (s *Service) Register(ctx context.Context, input CreateUserInput) (domain.User, error) {
-	if err := validateCreateUser(input); err != nil {
+	if err := validateUserRole(input.Role); err != nil {
 		return domain.User{}, err
 	}
 

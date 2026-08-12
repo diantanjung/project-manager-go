@@ -9,6 +9,15 @@ const (
 	RoleTeamMember     UserRole = "teamMember"
 )
 
+func (r UserRole) IsValid() bool {
+	switch r {
+	case RoleAdmin, RoleProductOwner, RoleProjectManager, RoleTeamMember:
+		return true
+	default:
+		return false
+	}
+}
+
 type TeamMemberRole string
 
 const (
@@ -16,6 +25,15 @@ const (
 	TeamRoleAdmin  TeamMemberRole = "admin"
 	TeamRoleMember TeamMemberRole = "member"
 )
+
+func (r TeamMemberRole) IsValid() bool {
+	switch r {
+	case TeamRoleOwner, TeamRoleAdmin, TeamRoleMember:
+		return true
+	default:
+		return false
+	}
+}
 
 type ProjectStatus string
 
@@ -37,6 +55,15 @@ const (
 	TaskStatusDone       TaskStatus = "done"
 )
 
+func (s TaskStatus) IsValid() bool {
+	switch s {
+	case TaskStatusBacklog, TaskStatusTodo, TaskStatusInProgress, TaskStatusReview, TaskStatusDone:
+		return true
+	default:
+		return false
+	}
+}
+
 type TaskPriority string
 
 const (
@@ -45,6 +72,15 @@ const (
 	TaskPriorityHigh   TaskPriority = "high"
 	TaskPriorityUrgent TaskPriority = "urgent"
 )
+
+func (p TaskPriority) IsValid() bool {
+	switch p {
+	case TaskPriorityLow, TaskPriorityMedium, TaskPriorityHigh, TaskPriorityUrgent:
+		return true
+	default:
+		return false
+	}
+}
 
 type NotificationType string
 
@@ -55,6 +91,15 @@ const (
 	NotificationProjectUpdate NotificationType = "project_update"
 	NotificationSystemAlert   NotificationType = "system_alert"
 )
+
+func (t NotificationType) IsValid() bool {
+	switch t {
+	case NotificationTaskAssigned, NotificationMention, NotificationTaskDue, NotificationProjectUpdate, NotificationSystemAlert:
+		return true
+	default:
+		return false
+	}
+}
 
 type WebhookEvent string
 

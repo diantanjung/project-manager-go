@@ -56,6 +56,9 @@ func parseRole(value string) *domain.UserRole {
 		return nil
 	}
 	role := domain.UserRole(value)
+	if !role.IsValid() {
+		return nil
+	}
 	return &role
 }
 
@@ -64,6 +67,9 @@ func parseTaskStatus(value string) *domain.TaskStatus {
 		return nil
 	}
 	status := domain.TaskStatus(value)
+	if !status.IsValid() {
+		return nil
+	}
 	return &status
 }
 
@@ -72,5 +78,8 @@ func parseTaskPriority(value string) *domain.TaskPriority {
 		return nil
 	}
 	priority := domain.TaskPriority(value)
+	if !priority.IsValid() {
+		return nil
+	}
 	return &priority
 }

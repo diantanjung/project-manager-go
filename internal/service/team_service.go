@@ -10,6 +10,9 @@ func (s *Service) CreateTeam(ctx context.Context, actor domain.AuthUser, input T
 	if !HasRole(actor.Role, domain.RoleProductOwner) {
 		return domain.Team{}, domain.NewError(domain.ErrForbidden, "Access denied. Insufficient permissions.")
 	}
+	if input.Name == nil {
+		return domain.Team{}, validationError("Name is required")
+	}
 	return s.store.CreateTeam(ctx, input)
 }
 
@@ -18,10 +21,16 @@ func (s *Service) ListTeams(ctx context.Context, filter PageFilter) (domain.Pagi
 }
 
 func (s *Service) GetTeamByID(ctx context.Context, id int) (domain.Team, error) {
+	if err := validatePositiveID(id, "Team ID"); err != nil {
+		return domain.Team{}, err
+	}
 	return s.store.GetTeamByID(ctx, id)
 }
 
 func (s *Service) UpdateTeam(ctx context.Context, actor domain.AuthUser, id int, input TeamInput) (domain.Team, error) {
+	if err := validatePositiveID(id, "Team ID"); err != nil {
+		return domain.Team{}, err
+	}
 	if !HasRole(actor.Role, domain.RoleProductOwner) {
 		return domain.Team{}, domain.NewError(domain.ErrForbidden, "Access denied. Insufficient permissions.")
 	}
@@ -29,6 +38,9 @@ func (s *Service) UpdateTeam(ctx context.Context, actor domain.AuthUser, id int,
 }
 
 func (s *Service) DeleteTeam(ctx context.Context, actor domain.AuthUser, id int) (domain.Team, error) {
+	if err := validatePositiveID(id, "Team ID"); err != nil {
+		return domain.Team{}, err
+	}
 	if actor.Role != domain.RoleAdmin {
 		return domain.Team{}, domain.NewError(domain.ErrForbidden, "Access denied. Insufficient permissions.")
 	}
@@ -36,6 +48,9 @@ func (s *Service) DeleteTeam(ctx context.Context, actor domain.AuthUser, id int)
 }
 
 func (s *Service) ListTeamMembers(ctx context.Context, teamID int) ([]domain.TeamMember, error) {
+	if err := validatePositiveID(teamID, "Team ID"); err != nil {
+		return nil, err
+	}
 	return s.store.ListTeamMembers(ctx, teamID)
 }
 
@@ -48,6 +63,15 @@ func (s *Service) AddTeamMember(
 	if !HasRole(actor.Role, domain.RoleProjectManager) {
 		return domain.TeamMember{}, domain.NewError(domain.ErrForbidden, "Access denied. Insufficient permissions.")
 	}
+	if err := validatePositiveID(teamID, "Team ID"); err != nil {
+		return domain.TeamMember{}, err
+	}
+	if err := validatePositiveID(input.UserID, "User ID"); err != nil {
+		return domain.TeamMember{}, err
+	}
+	if err := validateTeamMemberRole(input.Role); err != nil {
+		return domain.TeamMember{}, err
+	}
 	return s.store.AddTeamMember(ctx, teamID, input)
 }
 
@@ -59,6 +83,12 @@ func (s *Service) RemoveTeamMember(
 ) (domain.TeamMember, error) {
 	if !HasRole(actor.Role, domain.RoleProjectManager) {
 		return domain.TeamMember{}, domain.NewError(domain.ErrForbidden, "Access denied. Insufficient permissions.")
+	}
+	if err := validatePositiveID(teamID, "Team ID"); err != nil {
+		return domain.TeamMember{}, err
+	}
+	if err := validatePositiveID(userID, "User ID"); err != nil {
+		return domain.TeamMember{}, err
 	}
 	return s.store.RemoveTeamMember(ctx, teamID, userID)
 }

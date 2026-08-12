@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>09. PostgreSQL Store</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>Project Manager Go</h1>
+      <p>Bab 09</p>
+      <nav class="nav">
+        <a href="index.html">Daftar Bab</a>
+        <a href="01-gambaran-besar.html">01. Gambaran Besar</a>
+        <a href="02-setup-development.html">02. Setup Development</a>
+        <a href="03-struktur-project.html">03. Struktur Project</a>
+        <a href="04-konsep-dasar-go.html">04. Konsep Dasar Go</a>
+        <a href="05-domain-model.html">05. Domain Model</a>
+        <a href="06-service-dan-interface.html">06. Service dan Interface</a>
+        <a href="07-dependency-injection.html">07. Dependency Injection</a>
+        <a href="08-http-api.html">08. HTTP API</a>
+        <a class="active" href="09-postgres-store.html">09. PostgreSQL Store</a>
+        <a href="10-auth-rbac.html">10. Auth dan RBAC</a>
+        <a href="11-testing-debugging.html">11. Testing dan Debugging</a>
+        <a href="12-recap.html">12. Recap</a>
+      </nav>
+    </aside>
+    <main class="content">
+      <section class="hero">
+        <p class="eyebrow">Bab 09</p>
+        <h1>PostgreSQL Store</h1>
+        <p class="lead">Store adalah implementasi persistence. Service hanya tahu interface, sedangkan package <code>internal/store/postgres</code> tahu detail sqlx, query SQL, table, dan kolom.</p>
+      </section>
+
+      <h2>Struct Store</h2>
+      <pre><code>type Store struct {
+    db *sqlx.DB
+}
+
+func New(db *sqlx.DB) *Store {
+    return &Store{db: db}
+}</code></pre>
+      <p><code>*sqlx.DB</code> adalah pool koneksi database. Ia aman dipakai bersama oleh banyak request.</p>
+
+      <h2>Membuka koneksi</h2>
+      <pre><code>func Open(ctx context.Context, databaseURL string) (*sqlx.DB, error) {
+    db, err := sqlx.Open("pgx", databaseURL)
+    if err != nil {
+        return nil, fmt.Errorf("opening database pool: %w", err)
+    }
+    db.SetMaxOpenConns(25)
+    db.SetMaxIdleConns(10)
+    db.SetConnMaxLifetime(5 * time.Minute)
+
+    if err := db.PingContext(ctx); err != nil {
+        db.Close()
+        return nil, fmt.Errorf("pinging database: %w", err)
+    }
+    return db, nil
+}</code></pre>
+
+      <h2>Helper query</h2>
+      <p>Project punya helper untuk pagination, where clause, update clause, dan not found handling.</p>
+      <pre><code>func paginated[T any](data []T, filter service.PageFilter, total int) domain.Paginated[T] {
+    return domain.Paginated[T]{
+        Data: data,
+        Pagination: domain.Pagination{
+            Page:       filter.Page,
+            Limit:      filter.Limit,
+            TotalItems: total,
+            TotalPages: service.TotalPages(total, filter.Limit),
+        },
+    }
+}</code></pre>
+
+      <p>Ini contoh generic di layer database. Helper yang sama bisa membungkus list user, list project, atau list task.</p>
+
+      <h2>Builder WHERE</h2>
+      <pre><code>type whereBuilder struct {
+    parts  []string
+    values []any
+}</code></pre>
+      <p><code>whereBuilder</code> menyusun potongan SQL dan argumen. Ia membantu membuat filter dinamis tanpa menyusun nomor parameter PostgreSQL secara manual di setiap query.</p>
+
+      <h2>Mapping SQL ke struct</h2>
+      <p>Field domain punya tag <code>db</code> agar sqlx tahu kolom mana masuk ke field mana:</p>
+      <pre><code>ProjectID int `json:"projectId" db:"project_id"`</code></pre>
+
+      <h2>Error database ke error domain</h2>
+      <pre><code>func notFound(err error) error {
+    if err == nil {
+        return nil
+    }
+    if errors.Is(err, sql.ErrNoRows) {
+        return domain.ErrNotFound
+    }
+    return err
+}</code></pre>
+      <p>Dengan helper ini, service dan handler tidak perlu tahu <code>sql.ErrNoRows</code>. Mereka cukup memahami <code>domain.ErrNotFound</code>.</p>
+
+      <h2>Migrasi</h2>
+      <p>Folder <code>migrations</code> berisi file <code>up</code> dan <code>down</code>. File <code>up</code> membuat perubahan schema, file <code>down</code> membatalkannya. Nomor prefix menjaga urutan eksekusi.</p>
+
+      <pre><code>000001_create_enums.up.sql
+000002_create_updated_at_function.up.sql
+000003_create_users.up.sql
+...</code></pre>
+
+      <div class="warning">
+        <strong>Hal yang harus hati-hati:</strong> query dinamis harus tetap memakai parameter binding. Jangan memasukkan input user langsung ke SQL string, kecuali nilainya sudah dipilih dari whitelist seperti nama kolom sort.
+      </div>
+
+      <nav class="pager">
+        <a href="08-http-api.html">Bab 08</a>
+        <a href="10-auth-rbac.html">Lanjut Bab 10</a>
+      </nav>
+    </main>
+  </div>
+</body>
+</html>

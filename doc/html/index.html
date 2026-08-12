@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tutorial Project Manager Go</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>Project Manager Go</h1>
+      <p>Tutorial bertahap untuk memahami cara project ini dibuat dan konsep bahasa Go di dalamnya.</p>
+      <nav class="nav">
+        <a class="active" href="index.html">Daftar Bab</a>
+        <a href="01-gambaran-besar.html">01. Gambaran Besar</a>
+        <a href="02-setup-development.html">02. Setup Development</a>
+        <a href="03-struktur-project.html">03. Struktur Project</a>
+        <a href="04-konsep-dasar-go.html">04. Konsep Dasar Go</a>
+        <a href="05-domain-model.html">05. Domain Model</a>
+        <a href="06-service-dan-interface.html">06. Service dan Interface</a>
+        <a href="07-dependency-injection.html">07. Dependency Injection</a>
+        <a href="08-http-api.html">08. HTTP API</a>
+        <a href="09-postgres-store.html">09. PostgreSQL Store</a>
+        <a href="10-auth-rbac.html">10. Auth dan RBAC</a>
+        <a href="11-testing-debugging.html">11. Testing dan Debugging</a>
+        <a href="12-recap.html">12. Recap</a>
+      </nav>
+    </aside>
+    <main class="content">
+      <section class="hero">
+        <p class="eyebrow">Mulai dari nol sampai paham alur</p>
+        <h1>Tutorial Development Project Manager Go</h1>
+        <p class="lead">Dokumentasi ini dibuat per bab supaya bisa dibuka langsung di browser. Fokusnya dua: memahami tahapan pembuatan backend ini dan memahami konsep Go yang muncul di kode nyata.</p>
+      </section>
+
+      <h2>Cara memakai tutorial</h2>
+      <p>Buka file ini di browser, lalu ikuti bab secara berurutan. Setiap bab punya tujuan, potongan kode, dan latihan kecil. Jalur belajarnya sengaja dimulai dari setup, lalu struktur, konsep bahasa, layer aplikasi, database, auth, dan testing.</p>
+
+      <div class="card-grid">
+        <article class="card">
+          <h3>Untuk pemula Go</h3>
+          <p>Mulai dari bab 01 sampai 04. Jangan buru-buru ke database sebelum paham package, struct, pointer, interface, generic, dan error.</p>
+        </article>
+        <article class="card">
+          <h3>Untuk memahami project</h3>
+          <p>Fokus bab 05 sampai 10. Di sana dijelaskan alur request dari Gin handler, service, store interface, PostgreSQL, sampai response.</p>
+        </article>
+        <article class="card">
+          <h3>Untuk praktik harian</h3>
+          <p>Gunakan bab 11 sebagai daftar perintah yang sering dipakai: test, run server, migrasi, curl, dan cara membaca error.</p>
+        </article>
+      </div>
+
+      <h2>Peta bab</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Bab</th>
+            <th>Isi utama</th>
+            <th>File project yang dibahas</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>01</td>
+            <td>Tujuan project, fitur, dan alur backend</td>
+            <td><code>README.md</code></td>
+          </tr>
+          <tr>
+            <td>02</td>
+            <td>Setup Go, env, PostgreSQL, migrasi, run server</td>
+            <td><code>cmd/server/main.go</code>, <code>cmd/db/main.go</code></td>
+          </tr>
+          <tr>
+            <td>03</td>
+            <td>Layout Go: <code>cmd</code>, <code>internal</code>, domain, service, store</td>
+            <td>Seluruh folder utama</td>
+          </tr>
+          <tr>
+            <td>04</td>
+            <td>Package, function, struct, pointer, slice, map, error, context, generic</td>
+            <td>Contoh dari beberapa layer</td>
+          </tr>
+          <tr>
+            <td>05-10</td>
+            <td>Implementasi domain, service, DI, HTTP, database, auth, RBAC</td>
+            <td><code>internal/...</code></td>
+          </tr>
+          <tr>
+            <td>11-12</td>
+            <td>Testing, debugging, checklist selesai dan belum</td>
+            <td><code>*_test.go</code>, recap tutorial</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="note">
+        <strong>Catatan:</strong> tutorial ini menjelaskan kondisi project saat file dibuat. Jika kode berubah, bagian yang paling mungkin perlu disesuaikan adalah daftar endpoint, role permission, migrasi, dan struktur service/store.
+      </div>
+
+      <nav class="pager">
+        <span></span>
+        <a href="01-gambaran-besar.html">Mulai Bab 01</a>
+      </nav>
+    </main>
+  </div>
+</body>
+</html>
