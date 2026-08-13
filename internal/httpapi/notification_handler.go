@@ -14,7 +14,11 @@ func (h *Handler) listNotifications(c *gin.Context) {
 }
 
 func (h *Handler) markNotificationRead(c *gin.Context) {
-	item, err := h.service.MarkNotificationRead(c.Request.Context(), currentUser(c), pathInt(c, "id"))
+	id, ok := pathInt(c, "id")
+	if !ok {
+		return
+	}
+	item, err := h.service.MarkNotificationRead(c.Request.Context(), currentUser(c), id)
 	respond(c, http.StatusOK, item, err)
 }
 

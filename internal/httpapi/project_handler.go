@@ -10,10 +10,18 @@ import (
 )
 
 func (h *Handler) listProjects(c *gin.Context) {
+	filter, ok := pageFilter(c)
+	if !ok {
+		return
+	}
+	teamID, ok := queryIntPtr(c, "teamId")
+	if !ok {
+		return
+	}
 	result, err := h.service.ListProjects(c.Request.Context(), currentUser(c), service.ProjectFilter{
-		PageFilter: pageFilter(c),
+		PageFilter: filter,
 		Search:     c.Query("search"),
-		TeamID:     queryIntPtr(c, "teamId"),
+		TeamID:     teamID,
 		SortBy:     c.DefaultQuery("sortBy", "createdAt"),
 		Order:      c.DefaultQuery("order", "desc"),
 	})
@@ -35,36 +43,64 @@ func (h *Handler) listSidebarProjects(c *gin.Context) {
 }
 
 func (h *Handler) getProject(c *gin.Context) {
-	project, err := h.service.GetProjectByID(c.Request.Context(), currentUser(c), pathInt(c, "id"))
+	id, ok := pathInt(c, "id")
+	if !ok {
+		return
+	}
+	project, err := h.service.GetProjectByID(c.Request.Context(), currentUser(c), id)
 	respond(c, http.StatusOK, project, err)
 }
 
 func (h *Handler) updateProject(c *gin.Context) {
+	id, ok := pathInt(c, "id")
+	if !ok {
+		return
+	}
 	var input service.ProjectInput
 	if !bindJSON(c, &input) {
 		return
 	}
-	project, err := h.service.UpdateProject(c.Request.Context(), currentUser(c), pathInt(c, "id"), input)
+	project, err := h.service.UpdateProject(c.Request.Context(), currentUser(c), id, input)
 	respond(c, http.StatusOK, project, err)
 }
 
 func (h *Handler) deleteProject(c *gin.Context) {
-	_, err := h.service.DeleteProject(c.Request.Context(), currentUser(c), pathInt(c, "id"))
+	id, ok := pathInt(c, "id")
+	if !ok {
+		return
+	}
+	_, err := h.service.DeleteProject(c.Request.Context(), currentUser(c), id)
 	respond(c, http.StatusOK, gin.H{"message": "Project deleted successfully"}, err)
 }
 
 func (h *Handler) listProjectTasks(c *gin.Context) {
-	result, err := h.service.ListProjectTasks(c.Request.Context(), currentUser(c), pathInt(c, "id"), pageFilter(c))
+	id, ok := pathInt(c, "id")
+	if !ok {
+		return
+	}
+	filter, ok := pageFilter(c)
+	if !ok {
+		return
+	}
+	result, err := h.service.ListProjectTasks(c.Request.Context(), currentUser(c), id, filter)
 	respond(c, http.StatusOK, result, err)
 }
 
 func (h *Handler) listProjectTeams(c *gin.Context) {
-	teams, err := h.service.ListProjectTeams(c.Request.Context(), pathInt(c, "id"))
+	id, ok := pathInt(c, "id")
+	if !ok {
+		return
+	}
+	teams, err := h.service.ListProjectTeams(c.Request.Context(), id)
 	respond(c, http.StatusOK, teams, err)
 }
 
 func (h *Handler) listProjectTeamsByProjectID(c *gin.Context) {
-	teams, err := h.service.ListProjectTeams(c.Request.Context(), pathInt(c, "projectId"))
+	projectID, ok := pathInt(c, "projectId")
+	if !ok {
+		return
+	}
+	teams, err := h.service.ListProjectTeams(c.Request.Context(), projectID)
 	respond(c, http.StatusOK, teams, err)
 }
 
@@ -81,6 +117,10 @@ func (h *Handler) assignTeamToProject(c *gin.Context) {
 }
 
 func (h *Handler) removeTeamFromProject(c *gin.Context) {
-	_, err := h.service.RemoveTeamFromProject(c.Request.Context(), currentUser(c), pathInt(c, "id"))
+	id, ok := pathInt(c, "id")
+	if !ok {
+		return
+	}
+	_, err := h.service.RemoveTeamFromProject(c.Request.Context(), currentUser(c), id)
 	respond(c, http.StatusOK, gin.H{"message": "Team removed from project successfully"}, err)
 }
