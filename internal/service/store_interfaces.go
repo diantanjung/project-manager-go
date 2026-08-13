@@ -52,6 +52,7 @@ type ProjectStore interface {
 	CanCreateProjectForTeam(ctx context.Context, user domain.AuthUser, teamID int) (bool, error)
 	CreateProject(ctx context.Context, input ProjectInput) (domain.Project, error)
 	ListProjects(ctx context.Context, user domain.AuthUser, filter ProjectFilter) (domain.Paginated[domain.Project], error)
+	ListSidebarProjects(ctx context.Context, user domain.AuthUser) ([]domain.SidebarProject, error)
 	GetProjectByID(ctx context.Context, user domain.AuthUser, id int) (domain.Project, error)
 	UpdateProject(ctx context.Context, id int, input ProjectInput) (domain.Project, error)
 	DeleteProject(ctx context.Context, id int) (domain.Project, error)

@@ -42,6 +42,10 @@ func (s *Service) ListProjects(
 	return s.store.ListProjects(ctx, actor, filter)
 }
 
+func (s *Service) ListSidebarProjects(ctx context.Context, actor domain.AuthUser) ([]domain.SidebarProject, error) {
+	return s.store.ListSidebarProjects(ctx, actor)
+}
+
 func (s *Service) GetProjectByID(ctx context.Context, actor domain.AuthUser, id int) (domain.Project, error) {
 	if err := validatePositiveID(id, "Project ID"); err != nil {
 		return domain.Project{}, err

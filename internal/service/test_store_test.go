@@ -172,6 +172,10 @@ func (m *memoryStore) ListProjects(context.Context, domain.AuthUser, ProjectFilt
 	return domain.Paginated[domain.Project]{}, nil
 }
 
+func (m *memoryStore) ListSidebarProjects(context.Context, domain.AuthUser) ([]domain.SidebarProject, error) {
+	return nil, nil
+}
+
 func (m *memoryStore) GetProjectByID(context.Context, domain.AuthUser, int) (domain.Project, error) {
 	return domain.Project{}, nil
 }
