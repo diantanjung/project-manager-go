@@ -10,13 +10,25 @@ import (
 )
 
 func (h *Handler) listTasks(c *gin.Context) {
+	filter, ok := pageFilter(c)
+	if !ok {
+		return
+	}
+	projectID, ok := queryIntPtr(c, "projectId")
+	if !ok {
+		return
+	}
+	assigneeID, ok := queryIntPtr(c, "assigneeId")
+	if !ok {
+		return
+	}
 	result, err := h.service.ListTasks(c.Request.Context(), currentUser(c), service.TaskFilter{
-		PageFilter: pageFilter(c),
+		PageFilter: filter,
 		Search:     c.Query("search"),
-		ProjectID:  queryIntPtr(c, "projectId"),
+		ProjectID:  projectID,
 		Status:     parseTaskStatus(c.Query("status")),
 		Priority:   parseTaskPriority(c.Query("priority")),
-		AssigneeID: queryIntPtr(c, "assigneeId"),
+		AssigneeID: assigneeID,
 		SortBy:     c.DefaultQuery("sortBy", "createdAt"),
 		Order:      c.DefaultQuery("order", "desc"),
 	})
@@ -33,20 +45,32 @@ func (h *Handler) createTask(c *gin.Context) {
 }
 
 func (h *Handler) getTask(c *gin.Context) {
-	task, err := h.service.GetTaskByID(c.Request.Context(), currentUser(c), pathInt(c, "id"))
+	id, ok := pathInt(c, "id")
+	if !ok {
+		return
+	}
+	task, err := h.service.GetTaskByID(c.Request.Context(), currentUser(c), id)
 	respond(c, http.StatusOK, task, err)
 }
 
 func (h *Handler) updateTask(c *gin.Context) {
+	id, ok := pathInt(c, "id")
+	if !ok {
+		return
+	}
 	var input service.TaskPatchInput
 	if !bindJSON(c, &input) {
 		return
 	}
-	task, err := h.service.UpdateTask(c.Request.Context(), currentUser(c), pathInt(c, "id"), input)
+	task, err := h.service.UpdateTask(c.Request.Context(), currentUser(c), id, input)
 	respond(c, http.StatusOK, task, err)
 }
 
 func (h *Handler) updateTaskStatus(c *gin.Context) {
+	id, ok := pathInt(c, "id")
+	if !ok {
+		return
+	}
 	var input struct {
 		Status   domain.TaskStatus `json:"status" binding:"required,oneof=backlog todo in_progress review done"`
 		Position *int              `json:"position" binding:"omitempty,gte=0"`
@@ -57,7 +81,7 @@ func (h *Handler) updateTaskStatus(c *gin.Context) {
 	task, err := h.service.UpdateTask(
 		c.Request.Context(),
 		currentUser(c),
-		pathInt(c, "id"),
+		id,
 		service.TaskPatchInput{
 			Status:   &input.Status,
 			Position: input.Position,
@@ -67,12 +91,20 @@ func (h *Handler) updateTaskStatus(c *gin.Context) {
 }
 
 func (h *Handler) deleteTask(c *gin.Context) {
-	_, err := h.service.DeleteTask(c.Request.Context(), currentUser(c), pathInt(c, "id"))
+	id, ok := pathInt(c, "id")
+	if !ok {
+		return
+	}
+	_, err := h.service.DeleteTask(c.Request.Context(), currentUser(c), id)
 	respond(c, http.StatusOK, gin.H{"message": "Task deleted successfully"}, err)
 }
 
 func (h *Handler) listTaskAssignments(c *gin.Context) {
-	assignments, err := h.service.ListTaskAssignments(c.Request.Context(), pathInt(c, "taskId"))
+	taskID, ok := pathInt(c, "taskId")
+	if !ok {
+		return
+	}
+	assignments, err := h.service.ListTaskAssignments(c.Request.Context(), taskID)
 	respond(c, http.StatusOK, assignments, err)
 }
 
@@ -89,6 +121,10 @@ func (h *Handler) assignUserToTask(c *gin.Context) {
 }
 
 func (h *Handler) removeTaskAssignment(c *gin.Context) {
-	_, err := h.service.RemoveTaskAssignment(c.Request.Context(), currentUser(c), pathInt(c, "id"))
+	id, ok := pathInt(c, "id")
+	if !ok {
+		return
+	}
+	_, err := h.service.RemoveTaskAssignment(c.Request.Context(), currentUser(c), id)
 	respond(c, http.StatusOK, gin.H{"message": "Assignment removed successfully"}, err)
 }

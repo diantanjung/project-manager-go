@@ -67,19 +67,28 @@ func TestRespondWrapsPaginatedResource(t *testing.T) {
 func TestRespondErrorUsesSharedShape(t *testing.T) {
 	c, rec := testContext()
 
-	respondError(c, domain.NewError(domain.ErrValidation, "The given data was invalid."))
+	respondError(c, domain.NewValidationError(
+		"The given data was invalid.",
+		map[string][]string{
+			"email": {"The email field is required."},
+		},
+	))
 
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnprocessableEntity)
 	}
 	var got struct {
-		Message string `json:"message"`
+		Message string              `json:"message"`
+		Errors  map[string][]string `json:"errors"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatalf("decoding response: %v", err)
 	}
 	if got.Message != "The given data was invalid." {
 		t.Fatalf("message = %q", got.Message)
+	}
+	if len(got.Errors["email"]) != 1 || got.Errors["email"][0] != "The email field is required." {
+		t.Fatalf("errors.email = %#v", got.Errors["email"])
 	}
 
 	var raw map[string]any
@@ -107,6 +116,88 @@ func TestBindJSONUsesGinValidationTags(t *testing.T) {
 
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnprocessableEntity)
+	}
+	var got struct {
+		Message string              `json:"message"`
+		Errors  map[string][]string `json:"errors"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decoding response: %v", err)
+	}
+	if got.Message != "The given data was invalid." {
+		t.Fatalf("message = %q", got.Message)
+	}
+	if len(got.Errors["email"]) != 1 {
+		t.Fatalf("errors.email = %#v, want one validation message", got.Errors["email"])
+	}
+}
+
+func TestBindJSONReportsInvalidBody(t *testing.T) {
+	c, rec := testContext()
+	c.Request = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":`))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	var input service.CreateUserInput
+	if bindJSON(c, &input) {
+		t.Fatal("bindJSON() = true, want false")
+	}
+
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnprocessableEntity)
+	}
+	var got struct {
+		Errors map[string][]string `json:"errors"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decoding response: %v", err)
+	}
+	if len(got.Errors["body"]) != 1 {
+		t.Fatalf("errors.body = %#v, want one validation message", got.Errors["body"])
+	}
+}
+
+func TestPathIntReportsBadRequest(t *testing.T) {
+	c, rec := testContext()
+	c.Params = gin.Params{{Key: "id", Value: "abc"}}
+
+	if _, ok := pathInt(c, "id"); ok {
+		t.Fatal("pathInt() ok = true, want false")
+	}
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+	var got struct {
+		Message string              `json:"message"`
+		Errors  map[string][]string `json:"errors"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decoding response: %v", err)
+	}
+	if got.Message != http.StatusText(http.StatusBadRequest) {
+		t.Fatalf("message = %q", got.Message)
+	}
+	if len(got.Errors["id"]) != 1 {
+		t.Fatalf("errors.id = %#v, want one validation message", got.Errors["id"])
+	}
+}
+
+func TestRespondErrorMapsWrappedNotFound(t *testing.T) {
+	c, rec := testContext()
+
+	respondError(c, domain.NewError(domain.ErrNotFound, "Project not found"))
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNotFound)
+	}
+	var got struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decoding response: %v", err)
+	}
+	if got.Message != "Project not found" {
+		t.Fatalf("message = %q", got.Message)
 	}
 }
 

@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -15,40 +16,64 @@ func currentUser(c *gin.Context) domain.AuthUser {
 	return authUser
 }
 
-func pageFilter(c *gin.Context) service.PageFilter {
+func pageFilter(c *gin.Context) (service.PageFilter, bool) {
+	page, ok := queryInt(c, "page", 1)
+	if !ok {
+		return service.PageFilter{}, false
+	}
+	limit, ok := queryInt(c, "limit", 10)
+	if !ok {
+		return service.PageFilter{}, false
+	}
 	return service.NormalizePage(service.PageFilter{
-		Page:  queryInt(c, "page", 1),
-		Limit: queryInt(c, "limit", 10),
-	})
+		Page:  page,
+		Limit: limit,
+	}), true
 }
 
-func pathInt(c *gin.Context, key string) int {
-	value, _ := strconv.Atoi(c.Param(key))
-	return value
+func pathInt(c *gin.Context, key string) (int, bool) {
+	value, err := strconv.Atoi(c.Param(key))
+	if err != nil || value < 1 {
+		respondBadRequest(c, key, "The "+key+" parameter must be a positive integer.")
+		return 0, false
+	}
+	return value, true
 }
 
-func queryInt(c *gin.Context, key string, fallback int) int {
+func queryInt(c *gin.Context, key string, fallback int) (int, bool) {
 	value := c.Query(key)
 	if value == "" {
-		return fallback
+		return fallback, true
 	}
 	parsed, err := strconv.Atoi(value)
-	if err != nil {
-		return fallback
+	if err != nil || parsed < 1 {
+		respondBadRequest(c, key, "The "+key+" query parameter must be a positive integer.")
+		return 0, false
 	}
-	return parsed
+	return parsed, true
 }
 
-func queryIntPtr(c *gin.Context, key string) *int {
+func queryIntPtr(c *gin.Context, key string) (*int, bool) {
 	value := c.Query(key)
 	if value == "" {
-		return nil
+		return nil, true
 	}
 	parsed, err := strconv.Atoi(value)
-	if err != nil {
-		return nil
+	if err != nil || parsed < 1 {
+		respondBadRequest(c, key, "The "+key+" query parameter must be a positive integer.")
+		return nil, false
 	}
-	return &parsed
+	return &parsed, true
+}
+
+func respondBadRequest(c *gin.Context, field string, message string) {
+	respondError(c, domain.NewFieldError(
+		domain.ErrBadRequest,
+		http.StatusText(http.StatusBadRequest),
+		map[string][]string{
+			field: {message},
+		},
+	))
 }
 
 func parseRole(value string) *domain.UserRole {
