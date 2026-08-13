@@ -99,6 +99,7 @@ func (h *Handler) mountProjectRoutes(protected *gin.RouterGroup) {
 	projects := protected.Group("/projects")
 	projects.GET("", h.listProjects)
 	projects.POST("", h.requireRole(domain.RoleProjectManager), h.createProject)
+	projects.GET("/sidebar", h.listSidebarProjects)
 	projects.GET("/:id", h.getProject)
 	projects.PATCH("/:id", h.requireRole(domain.RoleProjectManager), h.updateProject)
 	projects.DELETE("/:id", h.requireRole(domain.RoleProductOwner), h.deleteProject)

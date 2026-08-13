@@ -14,6 +14,12 @@ type Project struct {
 	UpdatedAt   *time.Time `json:"updatedAt" db:"updated_at"`
 }
 
+type SidebarProject struct {
+	ID            int    `json:"id" db:"id"`
+	Name          string `json:"name" db:"name"`
+	OpenTaskCount int    `json:"openTaskCount" db:"open_task_count"`
+}
+
 type ProjectTeam struct {
 	ID              int        `json:"id" db:"id"`
 	ProjectID       int        `json:"projectId" db:"project_id"`

@@ -29,6 +29,11 @@ func (h *Handler) createProject(c *gin.Context) {
 	respond(c, http.StatusCreated, project, err)
 }
 
+func (h *Handler) listSidebarProjects(c *gin.Context) {
+	projects, err := h.service.ListSidebarProjects(c.Request.Context(), currentUser(c))
+	respond(c, http.StatusOK, projects, err)
+}
+
 func (h *Handler) getProject(c *gin.Context) {
 	project, err := h.service.GetProjectByID(c.Request.Context(), currentUser(c), pathInt(c, "id"))
 	respond(c, http.StatusOK, project, err)

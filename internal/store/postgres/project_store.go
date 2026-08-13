@@ -63,6 +63,19 @@ func (s *Store) ListProjects(
 	return selectPage[domain.Project](s, ctx, query, filter.PageFilter, total, args...)
 }
 
+func (s *Store) ListSidebarProjects(ctx context.Context, user domain.AuthUser) ([]domain.SidebarProject, error) {
+	where := projectWhere(user)
+	query := `
+		SELECT p.id, p.name, count(t.id) AS open_task_count
+		FROM projects p
+		LEFT JOIN tasks t ON t.project_id = p.id AND t.status <> 'done'
+		` + where.clause() + `
+		GROUP BY p.id, p.name
+		ORDER BY p.created_at DESC
+	`
+	return selectAll[domain.SidebarProject](s, ctx, query, where.values...)
+}
+
 func (s *Store) GetProjectByID(ctx context.Context, user domain.AuthUser, id int) (domain.Project, error) {
 	where := projectWhere(user)
 	where.add("p.id = $%d", id)
