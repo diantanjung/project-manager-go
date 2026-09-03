@@ -13,7 +13,7 @@ func (h *Handler) listTeams(c *gin.Context) {
 	if !ok {
 		return
 	}
-	result, err := h.service.ListTeams(c.Request.Context(), filter)
+	result, err := h.service.ListTeams(c.Request.Context(), currentUser(c), filter)
 	respond(c, http.StatusOK, result, err)
 }
 
@@ -31,7 +31,7 @@ func (h *Handler) getTeam(c *gin.Context) {
 	if !ok {
 		return
 	}
-	team, err := h.service.GetTeamByID(c.Request.Context(), id)
+	team, err := h.service.GetTeamByID(c.Request.Context(), currentUser(c), id)
 	respond(c, http.StatusOK, team, err)
 }
 
@@ -62,7 +62,7 @@ func (h *Handler) listTeamMembers(c *gin.Context) {
 	if !ok {
 		return
 	}
-	members, err := h.service.ListTeamMembers(c.Request.Context(), id)
+	members, err := h.service.ListTeamMembers(c.Request.Context(), currentUser(c), id)
 	respond(c, http.StatusOK, members, err)
 }
 

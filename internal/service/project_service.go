@@ -64,8 +64,15 @@ func (s *Service) UpdateProject(ctx context.Context, actor domain.AuthUser, id i
 		if err := validatePositiveID(*input.TeamID, "Team ID"); err != nil {
 			return domain.Project{}, err
 		}
+		ok, err := s.store.CanCreateProjectForTeam(ctx, actor, *input.TeamID)
+		if err != nil {
+			return domain.Project{}, err
+		}
+		if !ok {
+			return domain.Project{}, domain.NewError(domain.ErrForbidden, "Access denied. Insufficient permissions.")
+		}
 	}
-	return s.store.UpdateProject(ctx, id, input)
+	return s.store.UpdateProject(ctx, actor, id, input)
 }
 
 func (s *Service) DeleteProject(ctx context.Context, actor domain.AuthUser, id int) (domain.Project, error) {
@@ -75,7 +82,7 @@ func (s *Service) DeleteProject(ctx context.Context, actor domain.AuthUser, id i
 	if !HasRole(actor.Role, domain.RoleProductOwner) {
 		return domain.Project{}, domain.NewError(domain.ErrForbidden, "Access denied. Insufficient permissions.")
 	}
-	return s.store.DeleteProject(ctx, id)
+	return s.store.DeleteProject(ctx, actor, id)
 }
 
 func (s *Service) ListProjectTasks(
@@ -104,11 +111,24 @@ func (s *Service) AssignTeamToProject(
 	if err := validatePositiveID(input.TeamID, "Team ID"); err != nil {
 		return domain.ProjectTeam{}, false, err
 	}
-	return s.store.AssignTeamToProject(ctx, input)
+	if _, err := s.store.GetProjectByID(ctx, actor, input.ProjectID); err != nil {
+		return domain.ProjectTeam{}, false, err
+	}
+	ok, err := s.store.CanCreateProjectForTeam(ctx, actor, input.TeamID)
+	if err != nil {
+		return domain.ProjectTeam{}, false, err
+	}
+	if !ok {
+		return domain.ProjectTeam{}, false, domain.NewError(domain.ErrForbidden, "Access denied. Insufficient permissions.")
+	}
+	return s.store.AssignTeamToProject(ctx, actor, input)
 }
 
-func (s *Service) ListProjectTeams(ctx context.Context, projectID int) ([]domain.ProjectTeam, error) {
+func (s *Service) ListProjectTeams(ctx context.Context, actor domain.AuthUser, projectID int) ([]domain.ProjectTeam, error) {
 	if err := validatePositiveID(projectID, "Project ID"); err != nil {
+		return nil, err
+	}
+	if _, err := s.store.GetProjectByID(ctx, actor, projectID); err != nil {
 		return nil, err
 	}
 	return s.store.ListProjectTeams(ctx, projectID)
@@ -121,5 +141,5 @@ func (s *Service) RemoveTeamFromProject(ctx context.Context, actor domain.AuthUs
 	if !HasRole(actor.Role, domain.RoleProductOwner) {
 		return domain.ProjectTeam{}, domain.NewError(domain.ErrForbidden, "Access denied. Insufficient permissions.")
 	}
-	return s.store.RemoveTeamFromProject(ctx, id)
+	return s.store.RemoveTeamFromProject(ctx, actor, id)
 }

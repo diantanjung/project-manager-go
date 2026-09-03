@@ -27,7 +27,7 @@ type UserStore interface {
 	ListUsers(ctx context.Context, filter ListUsersFilter) (domain.Paginated[domain.User], error)
 	UpdateUser(ctx context.Context, id int, input UpdateUserInput) (domain.User, error)
 	DeleteUser(ctx context.Context, id int) (domain.User, error)
-	ListUserTasks(ctx context.Context, userID int, filter PageFilter) (domain.Paginated[domain.Task], error)
+	ListUserTasks(ctx context.Context, user domain.AuthUser, userID int, filter PageFilter) (domain.Paginated[domain.Task], error)
 }
 
 type RefreshTokenStore interface {
@@ -39,11 +39,11 @@ type RefreshTokenStore interface {
 
 type TeamStore interface {
 	CreateTeam(ctx context.Context, input TeamInput) (domain.Team, error)
-	ListTeams(ctx context.Context, filter PageFilter) (domain.Paginated[domain.Team], error)
-	GetTeamByID(ctx context.Context, id int) (domain.Team, error)
+	ListTeams(ctx context.Context, user domain.AuthUser, filter PageFilter) (domain.Paginated[domain.Team], error)
+	GetTeamByID(ctx context.Context, user domain.AuthUser, id int) (domain.Team, error)
 	UpdateTeam(ctx context.Context, id int, input TeamInput) (domain.Team, error)
 	DeleteTeam(ctx context.Context, id int) (domain.Team, error)
-	ListTeamMembers(ctx context.Context, teamID int) ([]domain.TeamMember, error)
+	ListTeamMembers(ctx context.Context, user domain.AuthUser, teamID int) ([]domain.TeamMember, error)
 	AddTeamMember(ctx context.Context, teamID int, input TeamMemberInput) (domain.TeamMember, error)
 	RemoveTeamMember(ctx context.Context, teamID int, userID int) (domain.TeamMember, error)
 }
@@ -54,8 +54,8 @@ type ProjectStore interface {
 	ListProjects(ctx context.Context, user domain.AuthUser, filter ProjectFilter) (domain.Paginated[domain.Project], error)
 	ListSidebarProjects(ctx context.Context, user domain.AuthUser) ([]domain.SidebarProject, error)
 	GetProjectByID(ctx context.Context, user domain.AuthUser, id int) (domain.Project, error)
-	UpdateProject(ctx context.Context, id int, input ProjectInput) (domain.Project, error)
-	DeleteProject(ctx context.Context, id int) (domain.Project, error)
+	UpdateProject(ctx context.Context, user domain.AuthUser, id int, input ProjectInput) (domain.Project, error)
+	DeleteProject(ctx context.Context, user domain.AuthUser, id int) (domain.Project, error)
 	ListProjectTasks(
 		ctx context.Context,
 		user domain.AuthUser,
@@ -65,18 +65,18 @@ type ProjectStore interface {
 }
 
 type ProjectTeamStore interface {
-	AssignTeamToProject(ctx context.Context, input ProjectTeamInput) (domain.ProjectTeam, bool, error)
+	AssignTeamToProject(ctx context.Context, user domain.AuthUser, input ProjectTeamInput) (domain.ProjectTeam, bool, error)
 	ListProjectTeams(ctx context.Context, projectID int) ([]domain.ProjectTeam, error)
 	GetProjectTeamByID(ctx context.Context, id int) (domain.ProjectTeam, error)
-	RemoveTeamFromProject(ctx context.Context, id int) (domain.ProjectTeam, error)
+	RemoveTeamFromProject(ctx context.Context, user domain.AuthUser, id int) (domain.ProjectTeam, error)
 }
 
 type TaskStore interface {
 	CreateTask(ctx context.Context, input TaskInput) (domain.Task, error)
 	ListTasks(ctx context.Context, user domain.AuthUser, filter TaskFilter) (domain.Paginated[domain.Task], error)
 	GetTaskByID(ctx context.Context, user domain.AuthUser, id int) (domain.Task, error)
-	UpdateTask(ctx context.Context, id int, input TaskPatchInput) (domain.Task, error)
-	DeleteTask(ctx context.Context, id int) (domain.Task, error)
+	UpdateTask(ctx context.Context, user domain.AuthUser, id int, input TaskPatchInput) (domain.Task, error)
+	DeleteTask(ctx context.Context, user domain.AuthUser, id int) (domain.Task, error)
 }
 
 type TaskAssignmentStore interface {

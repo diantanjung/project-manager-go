@@ -30,6 +30,9 @@ func (s *Service) CreateTask(ctx context.Context, actor domain.AuthUser, input T
 	if err := validatePositiveID(input.AssigneeID, "Assignee ID"); err != nil {
 		return domain.Task{}, err
 	}
+	if _, err := s.store.GetProjectByID(ctx, actor, input.ProjectID); err != nil {
+		return domain.Task{}, err
+	}
 	input.CreatorID = actor.ID
 	return s.store.CreateTask(ctx, input)
 }
@@ -62,8 +65,11 @@ func (s *Service) GetTaskByID(ctx context.Context, actor domain.AuthUser, id int
 	return s.store.GetTaskByID(ctx, actor, id)
 }
 
-func (s *Service) UpdateTask(ctx context.Context, _ domain.AuthUser, id int, input TaskPatchInput) (domain.Task, error) {
+func (s *Service) UpdateTask(ctx context.Context, actor domain.AuthUser, id int, input TaskPatchInput) (domain.Task, error) {
 	if err := validatePositiveID(id, "Task ID"); err != nil {
+		return domain.Task{}, err
+	}
+	if _, err := s.store.GetTaskByID(ctx, actor, id); err != nil {
 		return domain.Task{}, err
 	}
 	if err := validateTaskStatus(input.Status); err != nil {
@@ -76,13 +82,16 @@ func (s *Service) UpdateTask(ctx context.Context, _ domain.AuthUser, id int, inp
 		if err := validateOptionalPositiveID(input.ProjectID, "Project ID"); err != nil {
 			return domain.Task{}, err
 		}
+		if _, err := s.store.GetProjectByID(ctx, actor, *input.ProjectID); err != nil {
+			return domain.Task{}, err
+		}
 	}
 	if input.AssigneeID != nil {
 		if err := validateOptionalPositiveID(input.AssigneeID, "Assignee ID"); err != nil {
 			return domain.Task{}, err
 		}
 	}
-	return s.store.UpdateTask(ctx, id, input)
+	return s.store.UpdateTask(ctx, actor, id, input)
 }
 
 func (s *Service) DeleteTask(ctx context.Context, actor domain.AuthUser, id int) (domain.Task, error) {
@@ -92,7 +101,7 @@ func (s *Service) DeleteTask(ctx context.Context, actor domain.AuthUser, id int)
 	if !HasRole(actor.Role, domain.RoleProjectManager) {
 		return domain.Task{}, domain.NewError(domain.ErrForbidden, "Access denied. Insufficient permissions.")
 	}
-	return s.store.DeleteTask(ctx, id)
+	return s.store.DeleteTask(ctx, actor, id)
 }
 
 func (s *Service) AssignUserToTask(
@@ -109,6 +118,9 @@ func (s *Service) AssignUserToTask(
 	if err := validatePositiveID(input.UserID, "User ID"); err != nil {
 		return domain.TaskAssignment{}, false, err
 	}
+	if _, err := s.store.GetTaskByID(ctx, actor, input.TaskID); err != nil {
+		return domain.TaskAssignment{}, false, err
+	}
 	assignment, exists, err := s.store.AssignUserToTask(ctx, input)
 	if err != nil || exists {
 		return assignment, exists, err
@@ -122,8 +134,11 @@ func (s *Service) AssignUserToTask(
 	return assignment, false, err
 }
 
-func (s *Service) ListTaskAssignments(ctx context.Context, taskID int) ([]domain.TaskAssignment, error) {
+func (s *Service) ListTaskAssignments(ctx context.Context, actor domain.AuthUser, taskID int) ([]domain.TaskAssignment, error) {
 	if err := validatePositiveID(taskID, "Task ID"); err != nil {
+		return nil, err
+	}
+	if _, err := s.store.GetTaskByID(ctx, actor, taskID); err != nil {
 		return nil, err
 	}
 	return s.store.ListTaskAssignments(ctx, taskID)
@@ -135,6 +150,13 @@ func (s *Service) RemoveTaskAssignment(ctx context.Context, actor domain.AuthUse
 	}
 	if !HasRole(actor.Role, domain.RoleProjectManager) {
 		return domain.TaskAssignment{}, domain.NewError(domain.ErrForbidden, "Access denied. Insufficient permissions.")
+	}
+	assignment, err := s.store.GetTaskAssignmentByID(ctx, id)
+	if err != nil {
+		return domain.TaskAssignment{}, err
+	}
+	if _, err := s.store.GetTaskByID(ctx, actor, assignment.TaskID); err != nil {
+		return domain.TaskAssignment{}, err
 	}
 	return s.store.RemoveTaskAssignment(ctx, id)
 }

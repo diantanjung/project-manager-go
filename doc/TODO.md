@@ -27,7 +27,7 @@
 - [x] Rapikan response envelope, pagination, dan error shape agar konsisten dengan shared API contract.
 - [ ] Jalankan backend Go dengan PostgreSQL lokal/container, apply migration, lalu validasi smoke test endpoint MVP.
 - [ ] Tambahkan integration test database untuk repository dan workflow utama.
-- [ ] Perkuat resource-scoped authorization untuk project, task, comment, attachment, team, dan user/admin flow.
+- [x] Perkuat resource-scoped authorization untuk project, task, comment, attachment, team, dan user/admin flow.
 - [ ] Perkuat security hardening: safe user response, refresh token hash/rotation, rate limit auth, dan upload MIME/size validation.
 - [ ] Stabilkan workflow user/profile, team, dan project/sidebar untuk kebutuhan navigasi frontend.
 - [ ] Stabilkan workflow task board/list/detail, comment, dan attachment upload/download.

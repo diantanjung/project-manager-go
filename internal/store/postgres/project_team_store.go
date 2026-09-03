@@ -9,8 +9,13 @@ import (
 
 func (s *Store) AssignTeamToProject(
 	ctx context.Context,
+	user domain.AuthUser,
 	input service.ProjectTeamInput,
 ) (domain.ProjectTeam, bool, error) {
+	if _, err := s.GetProjectByID(ctx, user, input.ProjectID); err != nil {
+		return domain.ProjectTeam{}, false, err
+	}
+
 	var id int
 	err := s.db.GetContext(ctx, &id, `
 		SELECT id FROM project_teams WHERE project_id = $1 AND team_id = $2
@@ -47,7 +52,14 @@ func (s *Store) GetProjectTeamByID(ctx context.Context, id int) (domain.ProjectT
 	`, id)
 }
 
-func (s *Store) RemoveTeamFromProject(ctx context.Context, id int) (domain.ProjectTeam, error) {
+func (s *Store) RemoveTeamFromProject(ctx context.Context, user domain.AuthUser, id int) (domain.ProjectTeam, error) {
+	item, err := s.GetProjectTeamByID(ctx, id)
+	if err != nil {
+		return domain.ProjectTeam{}, err
+	}
+	if _, err := s.GetProjectByID(ctx, user, item.ProjectID); err != nil {
+		return domain.ProjectTeam{}, err
+	}
 	return getOne[domain.ProjectTeam](s, ctx, `
 		DELETE FROM project_teams WHERE id = $1
 		RETURNING id, project_id, team_id, assigned_at

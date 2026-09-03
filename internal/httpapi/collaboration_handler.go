@@ -18,7 +18,7 @@ func (h *Handler) listComments(c *gin.Context) {
 	if !ok {
 		return
 	}
-	comments, err := h.service.ListComments(c.Request.Context(), id)
+	comments, err := h.service.ListComments(c.Request.Context(), currentUser(c), id)
 	respond(c, http.StatusOK, comments, err)
 }
 
@@ -65,7 +65,7 @@ func (h *Handler) listAttachments(c *gin.Context) {
 	if !ok {
 		return
 	}
-	attachments, err := h.service.ListAttachments(c.Request.Context(), id)
+	attachments, err := h.service.ListAttachments(c.Request.Context(), currentUser(c), id)
 	respond(c, http.StatusOK, attachments, err)
 }
 
@@ -87,7 +87,7 @@ func (h *Handler) getAttachment(c *gin.Context) {
 	if !ok {
 		return
 	}
-	attachment, err := h.service.GetAttachmentByID(c.Request.Context(), id)
+	attachment, err := h.service.GetAttachmentByID(c.Request.Context(), currentUser(c), id)
 	respond(c, http.StatusOK, attachment, err)
 }
 

@@ -91,7 +91,7 @@ func (h *Handler) listProjectTeams(c *gin.Context) {
 	if !ok {
 		return
 	}
-	teams, err := h.service.ListProjectTeams(c.Request.Context(), id)
+	teams, err := h.service.ListProjectTeams(c.Request.Context(), currentUser(c), id)
 	respond(c, http.StatusOK, teams, err)
 }
 
@@ -100,7 +100,7 @@ func (h *Handler) listProjectTeamsByProjectID(c *gin.Context) {
 	if !ok {
 		return
 	}
-	teams, err := h.service.ListProjectTeams(c.Request.Context(), projectID)
+	teams, err := h.service.ListProjectTeams(c.Request.Context(), currentUser(c), projectID)
 	respond(c, http.StatusOK, teams, err)
 }
 
