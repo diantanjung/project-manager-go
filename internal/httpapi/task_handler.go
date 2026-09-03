@@ -104,7 +104,7 @@ func (h *Handler) listTaskAssignments(c *gin.Context) {
 	if !ok {
 		return
 	}
-	assignments, err := h.service.ListTaskAssignments(c.Request.Context(), taskID)
+	assignments, err := h.service.ListTaskAssignments(c.Request.Context(), currentUser(c), taskID)
 	respond(c, http.StatusOK, assignments, err)
 }
 

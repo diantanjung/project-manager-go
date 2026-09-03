@@ -174,3 +174,15 @@ func taskWhere(user domain.AuthUser) whereBuilder {
 	}
 	return where
 }
+
+func teamWhere(user domain.AuthUser) whereBuilder {
+	where := whereBuilder{}
+	if !service.HasRole(user.Role, domain.RoleProductOwner) {
+		where.add(`EXISTS (
+			SELECT 1
+			FROM team_members access_tm
+			WHERE access_tm.team_id = t.id AND access_tm.user_id = $%d
+		)`, user.ID)
+	}
+	return where
+}

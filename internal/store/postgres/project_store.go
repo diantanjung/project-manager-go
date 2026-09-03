@@ -88,25 +88,32 @@ func (s *Store) GetProjectByID(ctx context.Context, user domain.AuthUser, id int
 	return getOne[domain.Project](s, ctx, query, where.values...)
 }
 
-func (s *Store) UpdateProject(ctx context.Context, id int, input service.ProjectInput) (domain.Project, error) {
-	sets := updateBuilder{}
+func (s *Store) UpdateProject(ctx context.Context, user domain.AuthUser, id int, input service.ProjectInput) (domain.Project, error) {
+	where := projectWhere(user)
+	where.add("p.id = $%d", id)
+	sets := updateBuilder{values: append([]any{}, where.values...)}
 	sets.add("name", input.Name)
 	sets.add("description", input.Description)
 	sets.add("team_id", input.TeamID)
 	sets.touchUpdatedAt()
 	query := fmt.Sprintf(`
-		UPDATE projects SET %s WHERE id = $%d
-		RETURNING id, name, description, team_id, owner_id, created_at, updated_at
-	`, sets.clause(), len(sets.values)+1)
-	sets.values = append(sets.values, id)
+		UPDATE projects p SET %s FROM (
+			SELECT p.id FROM projects p %s
+		) allowed
+		WHERE p.id = allowed.id
+		RETURNING p.id, p.name, p.description, p.team_id, p.owner_id, p.created_at, p.updated_at
+	`, sets.clause(), where.clause())
 	return getOne[domain.Project](s, ctx, query, sets.values...)
 }
 
-func (s *Store) DeleteProject(ctx context.Context, id int) (domain.Project, error) {
-	return getOne[domain.Project](s, ctx, `
-		DELETE FROM projects WHERE id = $1
-		RETURNING id, name, description, team_id, owner_id, created_at, updated_at
-	`, id)
+func (s *Store) DeleteProject(ctx context.Context, user domain.AuthUser, id int) (domain.Project, error) {
+	where := projectWhere(user)
+	where.add("p.id = $%d", id)
+	query := `
+		DELETE FROM projects p ` + where.clause() + `
+		RETURNING p.id, p.name, p.description, p.team_id, p.owner_id, p.created_at, p.updated_at
+	`
+	return getOne[domain.Project](s, ctx, query, where.values...)
 }
 
 func (s *Store) ListProjectTasks(

@@ -88,8 +88,10 @@ func (s *Store) GetTaskByID(ctx context.Context, user domain.AuthUser, id int) (
 	return task, nil
 }
 
-func (s *Store) UpdateTask(ctx context.Context, id int, input service.TaskPatchInput) (domain.Task, error) {
-	sets := updateBuilder{}
+func (s *Store) UpdateTask(ctx context.Context, user domain.AuthUser, id int, input service.TaskPatchInput) (domain.Task, error) {
+	where := taskWhere(user)
+	where.add("ta.id = $%d", id)
+	sets := updateBuilder{values: append([]any{}, where.values...)}
 	sets.add("title", input.Title)
 	sets.add("description", input.Description)
 	sets.add("status", input.Status)
@@ -100,20 +102,25 @@ func (s *Store) UpdateTask(ctx context.Context, id int, input service.TaskPatchI
 	sets.add("position", input.Position)
 	sets.touchUpdatedAt()
 	query := fmt.Sprintf(`
-		UPDATE tasks SET %s WHERE id = $%d
-		RETURNING id, title, description, status, priority, project_id, NULL::text AS project_name,
-			creator_id, assignee_id, NULL::text AS assignee_name, NULL::text AS assignee_avatar_url, due_date::text AS due_date, position, created_at, updated_at
-	`, sets.clause(), len(sets.values)+1)
-	sets.values = append(sets.values, id)
+		UPDATE tasks ta SET %s FROM (
+			SELECT ta.id FROM tasks ta %s
+		) allowed
+		WHERE ta.id = allowed.id
+		RETURNING ta.id, ta.title, ta.description, ta.status, ta.priority, ta.project_id, NULL::text AS project_name,
+			ta.creator_id, ta.assignee_id, NULL::text AS assignee_name, NULL::text AS assignee_avatar_url, ta.due_date::text AS due_date, ta.position, ta.created_at, ta.updated_at
+	`, sets.clause(), where.clause())
 	return getOne[domain.Task](s, ctx, query, sets.values...)
 }
 
-func (s *Store) DeleteTask(ctx context.Context, id int) (domain.Task, error) {
-	return getOne[domain.Task](s, ctx, `
-		DELETE FROM tasks WHERE id = $1
-		RETURNING id, title, description, status, priority, project_id, NULL::text AS project_name,
-			creator_id, assignee_id, NULL::text AS assignee_name, NULL::text AS assignee_avatar_url, due_date::text AS due_date, position, created_at, updated_at
-	`, id)
+func (s *Store) DeleteTask(ctx context.Context, user domain.AuthUser, id int) (domain.Task, error) {
+	where := taskWhere(user)
+	where.add("ta.id = $%d", id)
+	query := `
+		DELETE FROM tasks ta ` + where.clause() + `
+		RETURNING ta.id, ta.title, ta.description, ta.status, ta.priority, ta.project_id, NULL::text AS project_name,
+			ta.creator_id, ta.assignee_id, NULL::text AS assignee_name, NULL::text AS assignee_avatar_url, ta.due_date::text AS due_date, ta.position, ta.created_at, ta.updated_at
+	`
+	return getOne[domain.Task](s, ctx, query, where.values...)
 }
 
 func (s *Store) AssignUserToTask(ctx context.Context, input service.TaskAssignmentInput) (domain.TaskAssignment, bool, error) {

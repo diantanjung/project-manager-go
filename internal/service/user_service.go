@@ -23,16 +23,22 @@ func (s *Service) CreateUser(ctx context.Context, input CreateUserInput) (domain
 	return s.store.CreateUser(ctx, input)
 }
 
-func (s *Service) GetUserByID(ctx context.Context, id int) (domain.User, error) {
+func (s *Service) GetUserByID(ctx context.Context, actor domain.AuthUser, id int) (domain.User, error) {
 	if err := validatePositiveID(id, "User ID"); err != nil {
 		return domain.User{}, err
+	}
+	if actor.ID != id && !HasRole(actor.Role, domain.RoleProjectManager) {
+		return domain.User{}, domain.NewError(domain.ErrForbidden, "Access denied. Insufficient permissions.")
 	}
 	user, err := s.store.GetUserByID(ctx, id)
 	user.PasswordHash = ""
 	return user, err
 }
 
-func (s *Service) ListUsers(ctx context.Context, filter ListUsersFilter) (domain.Paginated[domain.User], error) {
+func (s *Service) ListUsers(ctx context.Context, actor domain.AuthUser, filter ListUsersFilter) (domain.Paginated[domain.User], error) {
+	if !HasRole(actor.Role, domain.RoleProjectManager) {
+		return domain.Paginated[domain.User]{}, domain.NewError(domain.ErrForbidden, "Access denied. Insufficient permissions.")
+	}
 	if err := validateUserRole(filter.Role); err != nil {
 		return domain.Paginated[domain.User]{}, err
 	}
@@ -44,7 +50,7 @@ func (s *Service) UpdateUser(ctx context.Context, actor domain.AuthUser, id int,
 	if err := validatePositiveID(id, "User ID"); err != nil {
 		return domain.User{}, err
 	}
-	if actor.ID != id && !HasRole(actor.Role, domain.RoleProjectManager) {
+	if actor.ID != id && actor.Role != domain.RoleAdmin {
 		return domain.User{}, domain.NewError(domain.ErrForbidden, "Access denied. Insufficient permissions.")
 	}
 	if input.Password != nil && *input.Password != "" {
@@ -77,9 +83,17 @@ func (s *Service) DeleteUser(ctx context.Context, actor domain.AuthUser, id int)
 	return s.store.DeleteUser(ctx, id)
 }
 
-func (s *Service) ListUserTasks(ctx context.Context, userID int, filter PageFilter) (domain.Paginated[domain.Task], error) {
+func (s *Service) ListUserTasks(
+	ctx context.Context,
+	actor domain.AuthUser,
+	userID int,
+	filter PageFilter,
+) (domain.Paginated[domain.Task], error) {
 	if err := validatePositiveID(userID, "User ID"); err != nil {
 		return domain.Paginated[domain.Task]{}, err
 	}
-	return s.store.ListUserTasks(ctx, userID, NormalizePage(filter))
+	if actor.ID != userID && !HasRole(actor.Role, domain.RoleProjectManager) {
+		return domain.Paginated[domain.Task]{}, domain.NewError(domain.ErrForbidden, "Access denied. Insufficient permissions.")
+	}
+	return s.store.ListUserTasks(ctx, actor, userID, NormalizePage(filter))
 }

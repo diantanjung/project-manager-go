@@ -14,6 +14,9 @@ func (s *Service) CreateComment(ctx context.Context, actor domain.AuthUser, inpu
 	if err := validatePositiveID(input.TaskID, "Task ID"); err != nil {
 		return domain.Comment{}, err
 	}
+	if _, err := s.store.GetTaskByID(ctx, actor, input.TaskID); err != nil {
+		return domain.Comment{}, err
+	}
 	if strings.TrimSpace(input.Content) == "" {
 		return domain.Comment{}, domain.NewError(domain.ErrValidation, "Content is required")
 	}
@@ -53,8 +56,11 @@ func (s *Service) CreateComment(ctx context.Context, actor domain.AuthUser, inpu
 	return comment, nil
 }
 
-func (s *Service) ListComments(ctx context.Context, taskID int) ([]domain.CommentView, error) {
+func (s *Service) ListComments(ctx context.Context, actor domain.AuthUser, taskID int) ([]domain.CommentView, error) {
 	if err := validatePositiveID(taskID, "Task ID"); err != nil {
+		return nil, err
+	}
+	if _, err := s.store.GetTaskByID(ctx, actor, taskID); err != nil {
 		return nil, err
 	}
 	return s.store.ListComments(ctx, taskID)
@@ -71,6 +77,9 @@ func (s *Service) UpdateComment(ctx context.Context, actor domain.AuthUser, id i
 	if err != nil {
 		return domain.Comment{}, err
 	}
+	if _, err := s.store.GetTaskByID(ctx, actor, comment.TaskID); err != nil {
+		return domain.Comment{}, err
+	}
 	if comment.AuthorID != actor.ID {
 		return domain.Comment{}, domain.NewError(domain.ErrForbidden, "You can only update your own comments")
 	}
@@ -83,6 +92,9 @@ func (s *Service) DeleteComment(ctx context.Context, actor domain.AuthUser, id i
 	}
 	comment, err := s.store.GetCommentByID(ctx, id)
 	if err != nil {
+		return domain.Comment{}, err
+	}
+	if _, err := s.store.GetTaskByID(ctx, actor, comment.TaskID); err != nil {
 		return domain.Comment{}, err
 	}
 	if comment.AuthorID != actor.ID {
@@ -100,23 +112,36 @@ func (s *Service) CreateAttachment(
 	if err := validatePositiveID(taskID, "Task ID"); err != nil {
 		return domain.Attachment{}, err
 	}
+	if _, err := s.store.GetTaskByID(ctx, actor, taskID); err != nil {
+		return domain.Attachment{}, err
+	}
 	input.TaskID = taskID
 	input.UploaderID = actor.ID
 	return s.store.CreateAttachment(ctx, input)
 }
 
-func (s *Service) ListAttachments(ctx context.Context, taskID int) ([]domain.Attachment, error) {
+func (s *Service) ListAttachments(ctx context.Context, actor domain.AuthUser, taskID int) ([]domain.Attachment, error) {
 	if err := validatePositiveID(taskID, "Task ID"); err != nil {
+		return nil, err
+	}
+	if _, err := s.store.GetTaskByID(ctx, actor, taskID); err != nil {
 		return nil, err
 	}
 	return s.store.ListAttachments(ctx, taskID)
 }
 
-func (s *Service) GetAttachmentByID(ctx context.Context, id int) (domain.Attachment, error) {
+func (s *Service) GetAttachmentByID(ctx context.Context, actor domain.AuthUser, id int) (domain.Attachment, error) {
 	if err := validatePositiveID(id, "Attachment ID"); err != nil {
 		return domain.Attachment{}, err
 	}
-	return s.store.GetAttachmentByID(ctx, id)
+	attachment, err := s.store.GetAttachmentByID(ctx, id)
+	if err != nil {
+		return domain.Attachment{}, err
+	}
+	if _, err := s.store.GetTaskByID(ctx, actor, attachment.TaskID); err != nil {
+		return domain.Attachment{}, err
+	}
+	return attachment, nil
 }
 
 func (s *Service) DeleteAttachment(ctx context.Context, actor domain.AuthUser, id int) (domain.Attachment, error) {
@@ -125,6 +150,9 @@ func (s *Service) DeleteAttachment(ctx context.Context, actor domain.AuthUser, i
 	}
 	attachment, err := s.store.GetAttachmentByID(ctx, id)
 	if err != nil {
+		return domain.Attachment{}, err
+	}
+	if _, err := s.store.GetTaskByID(ctx, actor, attachment.TaskID); err != nil {
 		return domain.Attachment{}, err
 	}
 	if attachment.UploaderID != actor.ID {

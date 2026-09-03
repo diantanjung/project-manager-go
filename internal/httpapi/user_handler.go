@@ -14,7 +14,7 @@ func (h *Handler) listUsers(c *gin.Context) {
 		return
 	}
 	role := parseRole(c.Query("role"))
-	result, err := h.service.ListUsers(c.Request.Context(), service.ListUsersFilter{
+	result, err := h.service.ListUsers(c.Request.Context(), currentUser(c), service.ListUsersFilter{
 		PageFilter: filter,
 		Search:     c.Query("search"),
 		Role:       role,
@@ -38,7 +38,7 @@ func (h *Handler) getUser(c *gin.Context) {
 	if !ok {
 		return
 	}
-	user, err := h.service.GetUserByID(c.Request.Context(), id)
+	user, err := h.service.GetUserByID(c.Request.Context(), currentUser(c), id)
 	respond(c, http.StatusOK, user, err)
 }
 
@@ -73,6 +73,6 @@ func (h *Handler) listUserTasks(c *gin.Context) {
 	if !ok {
 		return
 	}
-	result, err := h.service.ListUserTasks(c.Request.Context(), id, filter)
+	result, err := h.service.ListUserTasks(c.Request.Context(), currentUser(c), id, filter)
 	respond(c, http.StatusOK, result, err)
 }

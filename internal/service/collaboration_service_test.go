@@ -29,6 +29,20 @@ func TestCreateCommentCreatesMentionNotification(t *testing.T) {
 	}
 }
 
+func TestCreateCommentRequiresTaskAccess(t *testing.T) {
+	store := newMemoryStore(t)
+	store.canAccessTask = false
+	svc := New(store, testTokenManager())
+
+	_, err := svc.CreateComment(context.Background(), domain.AuthUser{ID: 1, Role: domain.RoleTeamMember}, CommentInput{
+		TaskID:  10,
+		Content: "blocked",
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
 func TestUpdateCommentRequiresAuthor(t *testing.T) {
 	store := newMemoryStore(t)
 	svc := New(store, testTokenManager())
@@ -48,6 +62,17 @@ func TestDeleteAttachmentRequiresUploader(t *testing.T) {
 	svc := New(store, testTokenManager())
 
 	_, err := svc.DeleteAttachment(context.Background(), domain.AuthUser{ID: 2}, 1)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestGetAttachmentRequiresTaskAccess(t *testing.T) {
+	store := newMemoryStore(t)
+	store.canAccessTask = false
+	svc := New(store, testTokenManager())
+
+	_, err := svc.GetAttachmentByID(context.Background(), domain.AuthUser{ID: 1, Role: domain.RoleTeamMember}, 1)
 	if err == nil {
 		t.Fatal("expected error")
 	}

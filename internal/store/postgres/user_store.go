@@ -94,21 +94,28 @@ func (s *Store) DeleteUser(ctx context.Context, id int) (domain.User, error) {
 
 func (s *Store) ListUserTasks(
 	ctx context.Context,
+	user domain.AuthUser,
 	userID int,
 	filter service.PageFilter,
 ) (domain.Paginated[domain.Task], error) {
-	total, err := s.count(ctx, "tasks", "WHERE creator_id = $1 OR assignee_id = $1", userID)
-	if err != nil {
+	where := taskWhere(user)
+	where.add("(ta.creator_id = $%d OR ta.assignee_id = $%d)", userID, userID)
+
+	var total int
+	totalQuery := "SELECT count(*) FROM tasks ta " + where.clause()
+	if err := s.db.GetContext(ctx, &total, totalQuery, where.values...); err != nil {
 		return domain.Paginated[domain.Task]{}, err
 	}
-	query := `
-		SELECT t.id, t.title, t.description, t.status, t.priority, t.project_id, p.name AS project_name,
-			t.creator_id, t.assignee_id, NULL::text AS assignee_name, NULL::text AS assignee_avatar_url, t.due_date::text AS due_date, t.position,
-			t.created_at, t.updated_at
-		FROM tasks t
-		LEFT JOIN projects p ON p.id = t.project_id
-		WHERE t.creator_id = $1 OR t.assignee_id = $1
-		ORDER BY t.created_at DESC LIMIT $2 OFFSET $3
-	`
-	return selectPage[domain.Task](s, ctx, query, filter, total, userID, filter.Limit, offset(filter))
+
+	args := append(where.values, filter.Limit, offset(filter))
+	query := fmt.Sprintf(`
+		SELECT ta.id, ta.title, ta.description, ta.status, ta.priority, ta.project_id, p.name AS project_name,
+			ta.creator_id, ta.assignee_id, NULL::text AS assignee_name, NULL::text AS assignee_avatar_url, ta.due_date::text AS due_date, ta.position,
+			ta.created_at, ta.updated_at
+		FROM tasks ta
+		LEFT JOIN projects p ON p.id = ta.project_id
+		%s
+		ORDER BY ta.created_at DESC LIMIT $%d OFFSET $%d
+	`, where.clause(), len(args)-1, len(args))
+	return selectPage[domain.Task](s, ctx, query, filter, total, args...)
 }

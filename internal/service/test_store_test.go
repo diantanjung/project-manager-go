@@ -18,6 +18,7 @@ type memoryStore struct {
 	attachments      map[int]domain.Attachment
 	notifications    []NotificationInput
 	canCreateProject bool
+	canAccessTask    bool
 }
 
 func newMemoryStore(t *testing.T) *memoryStore {
@@ -62,6 +63,7 @@ func newMemoryStore(t *testing.T) *memoryStore {
 		},
 		notifications:    []NotificationInput{},
 		canCreateProject: true,
+		canAccessTask:    true,
 	}
 }
 
@@ -108,7 +110,7 @@ func (m *memoryStore) DeleteUser(context.Context, int) (domain.User, error) {
 	return domain.User{}, nil
 }
 
-func (m *memoryStore) ListUserTasks(context.Context, int, PageFilter) (domain.Paginated[domain.Task], error) {
+func (m *memoryStore) ListUserTasks(context.Context, domain.AuthUser, int, PageFilter) (domain.Paginated[domain.Task], error) {
 	return domain.Paginated[domain.Task]{}, nil
 }
 
@@ -132,11 +134,11 @@ func (m *memoryStore) CreateTeam(context.Context, TeamInput) (domain.Team, error
 	return domain.Team{}, nil
 }
 
-func (m *memoryStore) ListTeams(context.Context, PageFilter) (domain.Paginated[domain.Team], error) {
+func (m *memoryStore) ListTeams(context.Context, domain.AuthUser, PageFilter) (domain.Paginated[domain.Team], error) {
 	return domain.Paginated[domain.Team]{}, nil
 }
 
-func (m *memoryStore) GetTeamByID(context.Context, int) (domain.Team, error) {
+func (m *memoryStore) GetTeamByID(context.Context, domain.AuthUser, int) (domain.Team, error) {
 	return domain.Team{}, nil
 }
 
@@ -148,7 +150,7 @@ func (m *memoryStore) DeleteTeam(context.Context, int) (domain.Team, error) {
 	return domain.Team{}, nil
 }
 
-func (m *memoryStore) ListTeamMembers(context.Context, int) ([]domain.TeamMember, error) {
+func (m *memoryStore) ListTeamMembers(context.Context, domain.AuthUser, int) ([]domain.TeamMember, error) {
 	return nil, nil
 }
 
@@ -180,11 +182,11 @@ func (m *memoryStore) GetProjectByID(context.Context, domain.AuthUser, int) (dom
 	return domain.Project{}, nil
 }
 
-func (m *memoryStore) UpdateProject(context.Context, int, ProjectInput) (domain.Project, error) {
+func (m *memoryStore) UpdateProject(context.Context, domain.AuthUser, int, ProjectInput) (domain.Project, error) {
 	return domain.Project{}, nil
 }
 
-func (m *memoryStore) DeleteProject(context.Context, int) (domain.Project, error) {
+func (m *memoryStore) DeleteProject(context.Context, domain.AuthUser, int) (domain.Project, error) {
 	return domain.Project{}, nil
 }
 
@@ -197,7 +199,7 @@ func (m *memoryStore) ListProjectTasks(
 	return domain.Paginated[domain.Task]{}, nil
 }
 
-func (m *memoryStore) AssignTeamToProject(context.Context, ProjectTeamInput) (domain.ProjectTeam, bool, error) {
+func (m *memoryStore) AssignTeamToProject(context.Context, domain.AuthUser, ProjectTeamInput) (domain.ProjectTeam, bool, error) {
 	return domain.ProjectTeam{}, false, nil
 }
 
@@ -209,7 +211,7 @@ func (m *memoryStore) GetProjectTeamByID(context.Context, int) (domain.ProjectTe
 	return domain.ProjectTeam{}, nil
 }
 
-func (m *memoryStore) RemoveTeamFromProject(context.Context, int) (domain.ProjectTeam, error) {
+func (m *memoryStore) RemoveTeamFromProject(context.Context, domain.AuthUser, int) (domain.ProjectTeam, error) {
 	return domain.ProjectTeam{}, nil
 }
 
@@ -230,14 +232,17 @@ func (m *memoryStore) ListTasks(context.Context, domain.AuthUser, TaskFilter) (d
 }
 
 func (m *memoryStore) GetTaskByID(context.Context, domain.AuthUser, int) (domain.Task, error) {
+	if !m.canAccessTask {
+		return domain.Task{}, domain.ErrNotFound
+	}
 	return domain.Task{}, nil
 }
 
-func (m *memoryStore) UpdateTask(context.Context, int, TaskPatchInput) (domain.Task, error) {
+func (m *memoryStore) UpdateTask(context.Context, domain.AuthUser, int, TaskPatchInput) (domain.Task, error) {
 	return domain.Task{}, nil
 }
 
-func (m *memoryStore) DeleteTask(context.Context, int) (domain.Task, error) {
+func (m *memoryStore) DeleteTask(context.Context, domain.AuthUser, int) (domain.Task, error) {
 	return domain.Task{}, nil
 }
 
