@@ -1,4 +1,4 @@
-# TODO
+# Rewrite Roadmap
 
 ## Completed
 
@@ -16,7 +16,7 @@
 - [x] Memecah service test berdasarkan domain dan menyatukan fixture store di helper test.
 - [x] Memecah kontrak store service menjadi interface kecil per domain yang dikomposisi.
 
-## Remaining
+## MVP Stabilization
 
 - [x] Perbaiki unit test token auth yang gagal karena token fixed-time sudah expired saat diverifikasi.
 - [x] Jalankan ulang `go test ./...` sampai semua package hijau.
@@ -25,8 +25,8 @@
 - [x] Refactor PostgreSQL store dari `pgx` ke `sqlx` sesuai keputusan stack Go.
 - [x] Pastikan auth/session MVP lengkap: register, login, refresh, logout, `GET /auth/me`, dan compatibility alias `/api`.
 - [x] Rapikan response envelope, pagination, dan error shape agar konsisten dengan shared API contract.
-- [ ] Jalankan backend Go dengan PostgreSQL lokal/container, apply migration, lalu validasi smoke test endpoint MVP.
-- [ ] Tambahkan integration test database untuk repository dan workflow utama.
+- [x] Jalankan backend Go dengan PostgreSQL lokal/container, apply migration, lalu validasi smoke test endpoint MVP.
+- [x] Tambahkan integration test database untuk repository dan workflow utama.
 - [x] Perkuat resource-scoped authorization untuk project, task, comment, attachment, team, dan user/admin flow.
 - [ ] Perkuat security hardening: safe user response, refresh token hash/rotation, rate limit auth, dan upload MIME/size validation.
 - [ ] Stabilkan workflow user/profile, team, dan project/sidebar untuk kebutuhan navigasi frontend.
@@ -34,5 +34,27 @@
 - [ ] Stabilkan workflow notification dan dashboard berdasarkan kebutuhan MVP frontend.
 - [ ] Audit parity response terhadap shared API contract/Postman setelah frontend dicoba.
 - [ ] Tambahkan dokumentasi OpenAPI/Swagger untuk menggantikan endpoint `/api-docs` Node.
-- [ ] Implement P1 setelah MVP stabil: activity log, reorder atomik, unified assignment, dan checklist.
-- [ ] Implement P2 setelah P1 stabil: export, webhook, realtime notification, dan insight lanjutan.
+
+## Dashboard Feature
+
+- [ ] Definisikan contract response dashboard MVP untuk frontend.
+- [ ] Implement endpoint ringkasan dashboard user: total project, task assigned, task overdue, task completed, dan notification unread.
+- [ ] Implement endpoint task overview berdasarkan status dan priority.
+- [ ] Implement endpoint recent activity untuk project/task/comment yang relevan dengan user.
+- [ ] Terapkan resource-scoped authorization pada semua query dashboard.
+- [ ] Tambahkan repository/service test untuk agregasi dashboard.
+- [ ] Tambahkan integration test database untuk workflow dashboard utama.
+
+## P1
+
+- [ ] Implement activity log.
+- [ ] Implement reorder atomik.
+- [ ] Implement unified assignment.
+- [ ] Implement checklist.
+
+## P2
+
+- [ ] Implement export.
+- [ ] Implement webhook.
+- [ ] Implement realtime notification.
+- [ ] Implement insight lanjutan.

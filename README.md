@@ -107,6 +107,14 @@ default is `file://migrations`.
 go test ./...
 ```
 
+Database integration tests are gated behind the `integration` build tag and use
+`TEST_DATABASE_URL` when set, falling back to `DATABASE_URL` from `.env`. They
+run migrations first and roll test data back with transactions.
+
+```bash
+go test -tags=integration ./internal/store/postgres -run Integration -v
+```
+
 ## API Overview
 
 Public endpoints:
@@ -168,8 +176,8 @@ doc/                     Implementation notes and rewrite tracking
 
 This is an active rewrite of an existing backend. The Go service already includes
 the main HTTP, service, auth, PostgreSQL store layers, and initial versioned SQL
-migrations, while broader integration coverage is still tracked as remaining
-work in [doc/TODO.md](doc/TODO.md).
+migrations, while broader integration coverage and future milestones are tracked
+in [doc/ROADMAP.md](doc/ROADMAP.md).
 
 ## Contributing
 
