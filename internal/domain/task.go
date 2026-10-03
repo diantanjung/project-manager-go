@@ -20,6 +20,12 @@ type Task struct {
 	UpdatedAt         *time.Time    `json:"updatedAt" db:"updated_at"`
 	Comments          []CommentView `json:"comments,omitempty" db:"-"`
 	Attachments       []Attachment  `json:"attachments,omitempty" db:"-"`
+	Project           *TaskProject  `json:"project,omitempty" db:"-"`
+}
+
+type TaskProject struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
 }
 
 type TaskAssignment struct {

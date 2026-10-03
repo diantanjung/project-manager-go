@@ -192,6 +192,136 @@ func TestStoreIntegrationRepositoryRoundTrip(t *testing.T) {
 	}
 }
 
+func TestStoreIntegrationDashboardSummary(t *testing.T) {
+	ctx := t.Context()
+	store := newIntegrationStore(t)
+	suffix := uniqueSuffix()
+
+	managerRole := domain.RoleProjectManager
+	memberRole := domain.RoleTeamMember
+	manager, err := store.CreateUser(ctx, service.CreateUserInput{
+		Name:     "Dashboard Manager " + suffix,
+		Email:    "dashboard-manager-" + suffix + "@example.com",
+		Password: "stored-password",
+		Role:     &managerRole,
+	})
+	if err != nil {
+		t.Fatalf("CreateUser(manager) error = %v", err)
+	}
+	member, err := store.CreateUser(ctx, service.CreateUserInput{
+		Name:     "Dashboard Member " + suffix,
+		Email:    "dashboard-member-" + suffix + "@example.com",
+		Password: "stored-password",
+		Role:     &memberRole,
+	})
+	if err != nil {
+		t.Fatalf("CreateUser(member) error = %v", err)
+	}
+
+	teamName := "Dashboard Team " + suffix
+	team, err := store.CreateTeam(ctx, service.TeamInput{Name: &teamName})
+	if err != nil {
+		t.Fatalf("CreateTeam() error = %v", err)
+	}
+	if _, err := store.AddTeamMember(ctx, team.ID, service.TeamMemberInput{UserID: member.ID}); err != nil {
+		t.Fatalf("AddTeamMember(member) error = %v", err)
+	}
+
+	projectName := "Dashboard Project " + suffix
+	project, err := store.CreateProject(ctx, service.ProjectInput{
+		Name:    &projectName,
+		TeamID:  &team.ID,
+		OwnerID: manager.ID,
+	})
+	if err != nil {
+		t.Fatalf("CreateProject() error = %v", err)
+	}
+	if _, err := store.db.ExecContext(ctx, "UPDATE projects SET status = $1 WHERE id = $2", domain.ProjectStatusActive, project.ID); err != nil {
+		t.Fatalf("setting project active: %v", err)
+	}
+	planningProjectName := "Dashboard Planning Project " + suffix
+	if _, err := store.CreateProject(ctx, service.ProjectInput{
+		Name:    &planningProjectName,
+		TeamID:  &team.ID,
+		OwnerID: manager.ID,
+	}); err != nil {
+		t.Fatalf("CreateProject(planning) error = %v", err)
+	}
+
+	todo := domain.TaskStatusTodo
+	inProgress := domain.TaskStatusInProgress
+	review := domain.TaskStatusReview
+	done := domain.TaskStatusDone
+	high := domain.TaskPriorityHigh
+	urgent := domain.TaskPriorityUrgent
+	medium := domain.TaskPriorityMedium
+
+	taskInputs := []service.TaskInput{
+		{Title: "Dashboard Todo " + suffix, Status: &todo, Priority: &high, ProjectID: project.ID, CreatorID: manager.ID, AssigneeID: member.ID},
+		{Title: "Dashboard Doing " + suffix, Status: &inProgress, Priority: &medium, ProjectID: project.ID, CreatorID: manager.ID, AssigneeID: member.ID},
+		{Title: "Dashboard Review " + suffix, Status: &review, Priority: &urgent, ProjectID: project.ID, CreatorID: manager.ID, AssigneeID: member.ID},
+		{Title: "Dashboard Done " + suffix, Status: &done, Priority: &high, ProjectID: project.ID, CreatorID: manager.ID, AssigneeID: member.ID},
+	}
+	tasks := make([]domain.Task, 0, len(taskInputs))
+	for _, input := range taskInputs {
+		task, err := store.CreateTask(ctx, input)
+		if err != nil {
+			t.Fatalf("CreateTask(%s) error = %v", input.Title, err)
+		}
+		tasks = append(tasks, task)
+	}
+
+	dateUpdates := []struct {
+		taskID int
+		expr   string
+	}{
+		{taskID: tasks[0].ID, expr: "CURRENT_DATE"},
+		{taskID: tasks[1].ID, expr: "CURRENT_DATE + INTERVAL '1 day'"},
+		{taskID: tasks[2].ID, expr: "CURRENT_DATE - INTERVAL '1 day'"},
+		{taskID: tasks[3].ID, expr: "CURRENT_DATE - INTERVAL '1 day'"},
+	}
+	for _, update := range dateUpdates {
+		query := fmt.Sprintf("UPDATE tasks SET due_date = %s WHERE id = $1", update.expr)
+		if _, err := store.db.ExecContext(ctx, query, update.taskID); err != nil {
+			t.Fatalf("setting due date for task %d: %v", update.taskID, err)
+		}
+	}
+
+	summary, err := store.DashboardSummary(ctx, memberActor(member))
+	if err != nil {
+		t.Fatalf("DashboardSummary() error = %v", err)
+	}
+
+	if summary.TotalActiveProjects != 1 {
+		t.Fatalf("TotalActiveProjects = %d, want 1", summary.TotalActiveProjects)
+	}
+	if summary.TaskCountPerStatus[domain.TaskStatusTodo] != 1 ||
+		summary.TaskCountPerStatus[domain.TaskStatusInProgress] != 1 ||
+		summary.TaskCountPerStatus[domain.TaskStatusReview] != 1 ||
+		summary.TaskCountPerStatus[domain.TaskStatusDone] != 1 {
+		t.Fatalf("TaskCountPerStatus = %#v, want one task per created status", summary.TaskCountPerStatus)
+	}
+	if summary.ActiveProgress.Doing != 1 || summary.ActiveProgress.Todo != 1 ||
+		summary.ActiveProgress.Total != 2 || summary.ActiveProgress.Ratio != 0.5 ||
+		summary.ActiveProgress.Percentage != 50 {
+		t.Fatalf("ActiveProgress = %#v, want 1/2 progress", summary.ActiveProgress)
+	}
+	if summary.InReview != 1 || summary.DueSoon != 2 || summary.Overdue != 1 || summary.OverdueTaskCount != 1 {
+		t.Fatalf("dashboard counts = review:%d dueSoon:%d overdue:%d alias:%d, want 1/2/1/1",
+			summary.InReview, summary.DueSoon, summary.Overdue, summary.OverdueTaskCount)
+	}
+	if summary.WorkloadPerMember[fmt.Sprintf("%d", member.ID)] != 3 {
+		t.Fatalf("WorkloadPerMember = %#v, want three open tasks for member", summary.WorkloadPerMember)
+	}
+	if len(summary.RecentTasks) == 0 || len(summary.UpcomingDeadlines) != 2 || len(summary.HighPriorityTasks) != 2 {
+		t.Fatalf("dashboard task lists lengths = recent:%d upcoming:%d high:%d, want nonzero/2/2",
+			len(summary.RecentTasks), len(summary.UpcomingDeadlines), len(summary.HighPriorityTasks))
+	}
+	if len(summary.LatestUpdates) != 0 {
+		t.Fatalf("LatestUpdates = %#v, want empty until activity service is implemented", summary.LatestUpdates)
+	}
+}
+
 func TestStoreIntegrationServiceWorkflow(t *testing.T) {
 	ctx := t.Context()
 	store := newIntegrationStore(t)
