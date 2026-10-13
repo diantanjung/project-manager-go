@@ -101,6 +101,25 @@ go run ./cmd/db seed
 Set `MIGRATIONS_SOURCE` when running from outside the repository root. The
 default is `file://migrations`.
 
+### Production environment
+
+Use [`.env.production.example`](.env.production.example) as the variable list.
+The local `.env.production` file is ignored by Git. Set `DATABASE_URL` to the
+production PostgreSQL URL with TLS enabled and `FRONTEND_URL` to the exact HTTPS
+origin of the frontend (no trailing slash). Use two different, random JWT
+secrets. Keep `UPLOAD_DIR` on persistent storage if uploads must survive a
+redeploy. The refresh cookie uses `Secure` mode when `NODE_ENV=production`, so
+serve the API over HTTPS. Its `SameSite=Strict` setting requires the frontend
+and API to be on the same site for browser refresh requests.
+
+The app automatically reads `.env`, not `.env.production`. On a server, copy the
+completed production file to `.env` in the process working directory, or enter
+the same variables in the hosting platform's environment or secret settings.
+Run `go run ./cmd/db migrate-up` with those variables before starting
+`go run ./cmd/server`. Do not run `go run ./cmd/db seed` in production; it loads
+demo data. Set `MIGRATIONS_SOURCE` if migrations are outside the working
+directory.
+
 ### Run Tests
 
 ```bash

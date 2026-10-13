@@ -17,6 +17,8 @@ type memoryStore struct {
 	comments         map[int]domain.Comment
 	attachments      map[int]domain.Attachment
 	notifications    []NotificationInput
+	dashboardSummary domain.DashboardSummary
+	dashboardUser    domain.AuthUser
 	canCreateProject bool
 	canAccessTask    bool
 }
@@ -62,6 +64,7 @@ func newMemoryStore(t *testing.T) *memoryStore {
 			},
 		},
 		notifications:    []NotificationInput{},
+		dashboardSummary: domain.DashboardSummary{},
 		canCreateProject: true,
 		canAccessTask:    true,
 	}
@@ -332,6 +335,11 @@ func (m *memoryStore) MarkNotificationRead(context.Context, int, int) (domain.No
 
 func (m *memoryStore) MarkAllNotificationsRead(context.Context, int) ([]domain.Notification, error) {
 	return nil, nil
+}
+
+func (m *memoryStore) DashboardSummary(_ context.Context, user domain.AuthUser) (domain.DashboardSummary, error) {
+	m.dashboardUser = user
+	return m.dashboardSummary, nil
 }
 
 func stringPtr(value string) *string {

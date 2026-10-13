@@ -18,6 +18,7 @@ type Store interface {
 	CommentStore
 	AttachmentStore
 	NotificationStore
+	DashboardStore
 }
 
 type UserStore interface {
@@ -107,4 +108,8 @@ type NotificationStore interface {
 	ListNotifications(ctx context.Context, userID int) ([]domain.Notification, error)
 	MarkNotificationRead(ctx context.Context, id int, userID int) (domain.Notification, error)
 	MarkAllNotificationsRead(ctx context.Context, userID int) ([]domain.Notification, error)
+}
+
+type DashboardStore interface {
+	DashboardSummary(ctx context.Context, user domain.AuthUser) (domain.DashboardSummary, error)
 }

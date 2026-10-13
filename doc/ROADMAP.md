@@ -37,13 +37,18 @@
 
 ## Dashboard Feature
 
-- [ ] Definisikan contract response dashboard MVP untuk frontend.
-- [ ] Implement endpoint ringkasan dashboard user: total project, task assigned, task overdue, task completed, dan notification unread.
-- [ ] Implement endpoint task overview berdasarkan status dan priority.
-- [ ] Implement endpoint recent activity untuk project/task/comment yang relevan dengan user.
-- [ ] Terapkan resource-scoped authorization pada semua query dashboard.
-- [ ] Tambahkan repository/service test untuk agregasi dashboard.
-- [ ] Tambahkan integration test database untuk workflow dashboard utama.
+- [x] Implement `GET /api/v1/dashboard` dengan scope authenticated user's visible projects/tasks.
+- [x] Pastikan dashboard ikut tersedia lewat compatibility alias `/api/dashboard`.
+- [x] Kembalikan response dashboard sebagai object langsung sesuai frontend `dashboardService`, bukan envelope `{ data: ... }`, kecuali frontend ikut diubah untuk unwrap envelope.
+- [x] Kembalikan payload contract: `totalActiveProjects`, `taskCountPerStatus`, `activeProgress`, `inReview`, `dueSoon`, `overdue`, `overdueTaskCount`, dan `workloadPerMember`.
+- [x] Hitung `activeProgress.doing` dari `in_progress`, `activeProgress.todo` dari `todo`, `total = todo + doing`, `ratio` 4 desimal, dan `percentage` 2 desimal.
+- [x] Hitung `dueSoon` untuk task belum done yang jatuh tempo hari ini sampai 7 hari ke depan.
+- [x] Hitung `overdue` untuk task belum done yang jatuh tempo sebelum hari ini, dan samakan `overdueTaskCount` sebagai compatibility alias.
+- [x] Kembalikan list max 5 item untuk `recentlyUpdatedTasks`, `recentTasks`, `upcomingDeadlines`, dan `highPriorityTasks`.
+- [x] Kembalikan `latestUpdates` max 5 activity log item, atau `[]` sampai activity log P1 tersedia.
+- [x] Terapkan resource-scoped authorization pada semua query dashboard.
+- [x] Tambahkan repository/service test untuk agregasi dashboard.
+- [x] Tambahkan integration test database untuk workflow dashboard utama.
 
 ## P1
 

@@ -59,6 +59,7 @@ func (h *Handler) mountAPI(api *gin.RouterGroup) {
 	h.mountTaskRoutes(protected)
 	h.mountCollaborationRoutes(protected)
 	h.mountNotificationRoutes(protected)
+	protected.GET("/dashboard", h.dashboard)
 }
 
 func (h *Handler) root(c *gin.Context) {

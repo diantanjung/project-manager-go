@@ -91,6 +91,63 @@ func TestAuthMeRoutesReturnCurrentUser(t *testing.T) {
 	}
 }
 
+func TestDashboardRouteReturnsDirectFrontendPayload(t *testing.T) {
+	tokenManager := tokenManagerForHTTP()
+	user := domain.User{
+		ID:           7,
+		Name:         "Dian",
+		Email:        "dian@example.com",
+		PasswordHash: "stored-hash",
+		Role:         domain.RoleTeamMember,
+	}
+	router := NewRouter(
+		config.Config{NodeEnv: "test", FrontendURL: "http://localhost:5173"},
+		service.New(&dashboardHTTPStore{
+			authHTTPStore: authHTTPStore{user: user},
+			summary: domain.DashboardSummary{
+				TotalActiveProjects: 1,
+				TaskCountPerStatus: map[domain.TaskStatus]int{
+					domain.TaskStatusTodo: 1,
+				},
+				ActiveProgress: domain.ActiveProgress{
+					Doing:      1,
+					Total:      1,
+					Ratio:      1,
+					Percentage: 100,
+				},
+				RecentTasks:       []domain.Task{},
+				UpcomingDeadlines: []domain.Task{},
+				HighPriorityTasks: []domain.Task{},
+				LatestUpdates:     []domain.ActivityLog{},
+			},
+		}, tokenManager),
+	)
+	accessToken, err := tokenManager.GenerateAccessToken(user)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/dashboard", nil)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decoding response: %v", err)
+	}
+	if _, ok := got["data"]; ok {
+		t.Fatalf("dashboard response was enveloped: %s", rec.Body.String())
+	}
+	if got["totalActiveProjects"] != float64(1) {
+		t.Fatalf("totalActiveProjects = %v, want 1", got["totalActiveProjects"])
+	}
+}
+
 func tokenManagerForHTTP() auth.TokenManager {
 	return auth.TokenManager{
 		AccessSecret:  []byte("access"),
@@ -119,4 +176,13 @@ func (s *authHTTPStore) GetUserByID(_ context.Context, id int) (domain.User, err
 		return domain.User{}, domain.ErrNotFound
 	}
 	return s.user, nil
+}
+
+type dashboardHTTPStore struct {
+	authHTTPStore
+	summary domain.DashboardSummary
+}
+
+func (s *dashboardHTTPStore) DashboardSummary(context.Context, domain.AuthUser) (domain.DashboardSummary, error) {
+	return s.summary, nil
 }
