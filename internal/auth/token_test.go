@@ -46,3 +46,27 @@ func TestHashRefreshToken(t *testing.T) {
 		t.Fatalf("got hash length %d, want 64", len(got))
 	}
 }
+
+func TestRefreshTokensAreUniqueWithinSameSecond(t *testing.T) {
+	now := time.Date(2026, 7, 13, 8, 0, 0, 0, time.UTC)
+	manager := TokenManager{
+		RefreshSecret: []byte("refresh"),
+		RefreshTTL:    7 * 24 * time.Hour,
+		Now:           func() time.Time { return now },
+	}
+	user := domain.User{ID: 42, Email: "dian@example.com"}
+	first, err := manager.GenerateRefreshToken(user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := manager.GenerateRefreshToken(user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == second {
+		t.Fatal("refresh tokens generated in one second must differ")
+	}
+	if _, err := manager.VerifyRefreshToken(second); err != nil {
+		t.Fatalf("verifying rotated token: %v", err)
+	}
+}

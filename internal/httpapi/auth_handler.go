@@ -29,12 +29,16 @@ func (h *Handler) login(c *gin.Context) {
 		return
 	}
 	setRefreshCookie(c, h.cfg, result.RefreshToken)
-	respond(c, http.StatusOK, gin.H{"user": result.User, "accessToken": result.AccessToken}, nil)
+	c.Header("Cache-Control", "no-store")
+	respond(c, http.StatusOK, gin.H{"user": result.User, "accessToken": result.AccessToken, "refreshToken": result.RefreshToken}, nil)
 }
 
 func (h *Handler) refresh(c *gin.Context) {
-	refreshToken, err := c.Cookie("refreshToken")
-	if err != nil {
+	refreshToken, ok := requestRefreshToken(c)
+	if !ok {
+		return
+	}
+	if refreshToken == "" {
 		respondError(c, domain.NewError(domain.ErrInvalidRefresh, "Refresh token not found"))
 		return
 	}
@@ -45,7 +49,8 @@ func (h *Handler) refresh(c *gin.Context) {
 		return
 	}
 	setRefreshCookie(c, h.cfg, result.RefreshToken)
-	respond(c, http.StatusOK, gin.H{"accessToken": result.AccessToken}, nil)
+	c.Header("Cache-Control", "no-store")
+	respond(c, http.StatusOK, gin.H{"accessToken": result.AccessToken, "refreshToken": result.RefreshToken}, nil)
 }
 
 func (h *Handler) me(c *gin.Context) {
@@ -54,7 +59,10 @@ func (h *Handler) me(c *gin.Context) {
 }
 
 func (h *Handler) logout(c *gin.Context) {
-	refreshToken, _ := c.Cookie("refreshToken")
+	refreshToken, ok := requestRefreshToken(c)
+	if !ok {
+		return
+	}
 	err := h.service.Logout(c.Request.Context(), currentUser(c), refreshToken)
 	if err != nil {
 		respondError(c, err)
@@ -62,4 +70,20 @@ func (h *Handler) logout(c *gin.Context) {
 	}
 	clearRefreshCookie(c, h.cfg)
 	c.Status(http.StatusNoContent)
+}
+
+func requestRefreshToken(c *gin.Context) (string, bool) {
+	if token, err := c.Cookie("refreshToken"); err == nil && token != "" {
+		return token, true
+	}
+	if c.Request.ContentLength == 0 {
+		return "", true
+	}
+	var body struct {
+		RefreshToken string `json:"refreshToken"`
+	}
+	if !bindJSON(c, &body) {
+		return "", false
+	}
+	return body.RefreshToken, true
 }

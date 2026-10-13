@@ -1,7 +1,9 @@
 package auth
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"time"
@@ -75,12 +77,21 @@ func (m TokenManager) now() time.Time {
 
 func (m TokenManager) generate(user domain.User, tokenType string, ttl time.Duration, secret []byte) (string, error) {
 	now := m.now()
+	var tokenID string
+	if tokenType == "refresh" {
+		bytes := make([]byte, 32)
+		if _, err := rand.Read(bytes); err != nil {
+			return "", fmt.Errorf("generating refresh token ID: %w", err)
+		}
+		tokenID = base64.RawURLEncoding.EncodeToString(bytes)
+	}
 	claims := Claims{
 		ID:    user.ID,
 		Email: user.Email,
 		Role:  user.Role,
 		Type:  tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        tokenID,
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
 			IssuedAt:  jwt.NewNumericDate(now),
 		},
