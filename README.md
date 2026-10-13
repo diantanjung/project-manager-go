@@ -109,8 +109,14 @@ production PostgreSQL URL with TLS enabled and `FRONTEND_URL` to the exact HTTPS
 origin of the frontend (no trailing slash). Use two different, random JWT
 secrets. Keep `UPLOAD_DIR` on persistent storage if uploads must survive a
 redeploy. The refresh cookie uses `Secure` mode when `NODE_ENV=production`, so
-serve the API over HTTPS. Its `SameSite=Strict` setting requires the frontend
-and API to be on the same site for browser refresh requests.
+serve the API over HTTPS. Its `SameSite=Strict` setting means browsers send the
+cookie only for same-site requests. For cross-site deployments such as Vercel
+frontend and Render API, login and refresh responses also return `refreshToken`.
+The frontend stores that fallback in `sessionStorage` and sends it in the JSON
+body of refresh and logout requests. This keeps sessions after page reloads even
+when cross-site cookies are blocked. Because JavaScript can read the fallback
+token, protect the frontend against XSS. The HttpOnly cookie remains the preferred
+source when the browser sends it.
 
 The app automatically reads `.env`, not `.env.production`. On a server, copy the
 completed production file to `.env` in the process working directory, or enter
@@ -143,10 +149,10 @@ Public endpoints:
 | `GET` | `/` | Welcome response. |
 | `GET` | `/health` | Health check with environment and timestamp. |
 | `POST` | `/api/auth/register` | Register a user. |
-| `POST` | `/api/auth/login` | Log in and receive an access token. |
-| `POST` | `/api/auth/refresh` | Refresh the access token from the refresh cookie. |
+| `POST` | `/api/auth/login` | Log in and receive access and refresh tokens; also set the refresh cookie. |
+| `POST` | `/api/auth/refresh` | Rotate the refresh token from the cookie or JSON `refreshToken` body. |
 | `GET` | `/api/auth/me` | Return the current authenticated user. |
-| `POST` | `/api/auth/logout` | Revoke the refresh token and clear the refresh cookie. |
+| `POST` | `/api/auth/logout` | Revoke the refresh token from the cookie or JSON body and clear the cookie. |
 
 Protected endpoints require an `Authorization: Bearer <accessToken>` header.
 The same API routes are mounted under both `/api` and `/api/v1`.
