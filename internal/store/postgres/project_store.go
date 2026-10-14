@@ -138,7 +138,7 @@ func (s *Store) ListProjectTasks(
 		LEFT JOIN projects p ON p.id = ta.project_id
 		LEFT JOIN users u ON u.id = ta.assignee_id
 		%s
-		ORDER BY ta.created_at DESC LIMIT $%d OFFSET $%d
+		ORDER BY ta.position ASC NULLS LAST, ta.id ASC LIMIT $%d OFFSET $%d
 	`, where.clause(), len(args)-1, len(args))
 	return selectPage[domain.Task](s, ctx, query, filter, total, args...)
 }

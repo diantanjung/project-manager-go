@@ -69,22 +69,29 @@ func (s *Service) UpdateTask(ctx context.Context, actor domain.AuthUser, id int,
 	if err := validatePositiveID(id, "Task ID"); err != nil {
 		return domain.Task{}, err
 	}
-	if _, err := s.store.GetTaskByID(ctx, actor, id); err != nil {
+	task, err := s.store.GetTaskByID(ctx, actor, id)
+	if err != nil {
 		return domain.Task{}, err
+	}
+	if input.ProjectID != nil {
+		return domain.Task{}, validationError("Project ID cannot be changed through task edit")
+	}
+	if input.Title == nil && input.Description == nil && input.Status == nil && input.Priority == nil && input.AssigneeID == nil && input.DueDate == nil && input.Position == nil {
+		return domain.Task{}, validationError("At least one task field is required")
+	}
+	if !HasRole(actor.Role, domain.RoleProjectManager) {
+		if input.Status == nil || input.Title != nil || input.Description != nil || input.Priority != nil || input.AssigneeID != nil || input.DueDate != nil || input.Position != nil {
+			return domain.Task{}, domain.NewError(domain.ErrForbidden, "Access denied. Only task status can be updated.")
+		}
+		if task.AssigneeID != actor.ID {
+			return domain.Task{}, domain.NewError(domain.ErrForbidden, "Access denied. Task is not assigned to this user.")
+		}
 	}
 	if err := validateTaskStatus(input.Status); err != nil {
 		return domain.Task{}, err
 	}
 	if err := validateTaskPriority(input.Priority); err != nil {
 		return domain.Task{}, err
-	}
-	if input.ProjectID != nil {
-		if err := validateOptionalPositiveID(input.ProjectID, "Project ID"); err != nil {
-			return domain.Task{}, err
-		}
-		if _, err := s.store.GetProjectByID(ctx, actor, *input.ProjectID); err != nil {
-			return domain.Task{}, err
-		}
 	}
 	if input.AssigneeID != nil {
 		if err := validateOptionalPositiveID(input.AssigneeID, "Assignee ID"); err != nil {

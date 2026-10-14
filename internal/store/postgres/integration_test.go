@@ -127,6 +127,78 @@ func TestStoreIntegrationRepositoryRoundTrip(t *testing.T) {
 	if task.Status != domain.TaskStatusTodo || task.ProjectID != project.ID {
 		t.Fatalf("task = %#v, want todo task in project %d", task, project.ID)
 	}
+	firstPosition := 0
+	first, err := store.CreateTask(ctx, service.TaskInput{
+		Title: "First task", Status: &status, Priority: &priority, ProjectID: project.ID,
+		CreatorID: manager.ID, AssigneeID: member.ID, Position: &firstPosition,
+	})
+	if err != nil {
+		t.Fatalf("CreateTask(first) error = %v", err)
+	}
+	lastPosition := 2
+	last, err := store.CreateTask(ctx, service.TaskInput{
+		Title: "Last task", Status: &status, Priority: &priority, ProjectID: project.ID,
+		CreatorID: manager.ID, AssigneeID: member.ID, Position: &lastPosition,
+	})
+	if err != nil {
+		t.Fatalf("CreateTask(last) error = %v", err)
+	}
+	zero := 0
+	updated, err := store.UpdateTask(ctx, managerActor, task.ID, service.TaskPatchInput{Position: &zero})
+	if err != nil {
+		t.Fatalf("UpdateTask(reorder) error = %v", err)
+	}
+	if updated.Position == nil || *updated.Position != 0 {
+		t.Fatalf("reordered task position = %v, want 0", updated.Position)
+	}
+	if updated.Title != task.Title || updated.Description == nil || *updated.Description != description || updated.Priority == nil || *updated.Priority != priority {
+		t.Fatalf("reorder changed unrelated task fields: %#v", updated)
+	}
+	renamedTitle := "Edited integration task"
+	edited, err := store.UpdateTask(ctx, managerActor, task.ID, service.TaskPatchInput{Title: &renamedTitle})
+	if err != nil {
+		t.Fatalf("UpdateTask(edit title) error = %v", err)
+	}
+	if edited.Title != renamedTitle || edited.Status != status || edited.Position == nil || *edited.Position != 0 {
+		t.Fatalf("task edit changed unrelated fields: %#v", edited)
+	}
+	ordered, err := store.ListTasks(ctx, managerActor, service.TaskFilter{
+		PageFilter: service.PageFilter{Page: 1, Limit: 10}, ProjectID: &project.ID,
+		Status: &status, SortBy: "position", Order: "asc",
+	})
+	if err != nil {
+		t.Fatalf("ListTasks(ordered) error = %v", err)
+	}
+	if len(ordered.Data) != 3 || ordered.Data[0].ID != task.ID || ordered.Data[1].ID != first.ID || ordered.Data[2].ID != last.ID {
+		t.Fatalf("task order after reorder = %#v, want [%d %d %d]", ordered.Data, task.ID, first.ID, last.ID)
+	}
+	done := domain.TaskStatusDone
+	if _, err := store.UpdateTask(ctx, managerActor, task.ID, service.TaskPatchInput{Status: &done, Position: &zero}); err != nil {
+		t.Fatalf("UpdateTask(move status) error = %v", err)
+	}
+	remaining, err := store.ListTasks(ctx, managerActor, service.TaskFilter{
+		PageFilter: service.PageFilter{Page: 1, Limit: 10}, ProjectID: &project.ID,
+		Status: &status, SortBy: "position", Order: "asc",
+	})
+	if err != nil {
+		t.Fatalf("ListTasks(after status move) error = %v", err)
+	}
+	if len(remaining.Data) != 2 || remaining.Data[0].ID != first.ID || remaining.Data[1].ID != last.ID || *remaining.Data[0].Position != 0 || *remaining.Data[1].Position != 1 {
+		t.Fatalf("source order after status move = %#v", remaining.Data)
+	}
+	if _, err := store.UpdateTask(ctx, managerActor, first.ID, service.TaskPatchInput{Status: &done}); err != nil {
+		t.Fatalf("UpdateTask(status only) error = %v", err)
+	}
+	doneTasks, err := store.ListTasks(ctx, managerActor, service.TaskFilter{
+		PageFilter: service.PageFilter{Page: 1, Limit: 10}, ProjectID: &project.ID,
+		Status: &done, SortBy: "position", Order: "asc",
+	})
+	if err != nil {
+		t.Fatalf("ListTasks(done) error = %v", err)
+	}
+	if len(doneTasks.Data) != 2 || doneTasks.Data[0].ID != task.ID || doneTasks.Data[1].ID != first.ID || *doneTasks.Data[1].Position != 1 {
+		t.Fatalf("destination order after status-only move = %#v", doneTasks.Data)
+	}
 
 	if _, exists, err := store.AssignUserToTask(ctx, service.TaskAssignmentInput{
 		TaskID: task.ID,

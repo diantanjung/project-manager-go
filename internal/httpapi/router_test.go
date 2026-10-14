@@ -215,6 +215,28 @@ func TestDashboardRouteReturnsDirectFrontendPayload(t *testing.T) {
 	}
 }
 
+func TestPatchTaskRouteAcceptsPositionZero(t *testing.T) {
+	user := domain.User{ID: 7, Email: "manager@example.com", Role: domain.RoleProjectManager}
+	store := &taskPatchHTTPStore{authHTTPStore: authHTTPStore{user: user}}
+	tokens := tokenManagerForHTTP()
+	router := NewRouter(config.Config{NodeEnv: "test", FrontendURL: "http://localhost:5173"}, service.New(store, tokens))
+	token, err := tokens.GenerateAccessToken(user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/tasks/10", strings.NewReader(`{"title":"Edited task","position":0}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("PATCH status = %d: %s", rec.Code, rec.Body.String())
+	}
+	if store.patch.Position == nil || *store.patch.Position != 0 || store.patch.Title == nil || *store.patch.Title != "Edited task" {
+		t.Fatalf("stored patch = %#v, want title and position 0", store.patch)
+	}
+}
+
 func tokenManagerForHTTP() auth.TokenManager {
 	return auth.TokenManager{
 		AccessSecret:  []byte("access"),
@@ -294,6 +316,20 @@ func (s *authHTTPStore) GetUserByID(_ context.Context, id int) (domain.User, err
 type dashboardHTTPStore struct {
 	authHTTPStore
 	summary domain.DashboardSummary
+}
+
+type taskPatchHTTPStore struct {
+	authHTTPStore
+	patch service.TaskPatchInput
+}
+
+func (s *taskPatchHTTPStore) GetTaskByID(context.Context, domain.AuthUser, int) (domain.Task, error) {
+	return domain.Task{ID: 10}, nil
+}
+
+func (s *taskPatchHTTPStore) UpdateTask(_ context.Context, _ domain.AuthUser, _ int, input service.TaskPatchInput) (domain.Task, error) {
+	s.patch = input
+	return domain.Task{ID: 10, Title: *input.Title, Position: input.Position}, nil
 }
 
 func (s *dashboardHTTPStore) DashboardSummary(context.Context, domain.AuthUser) (domain.DashboardSummary, error) {

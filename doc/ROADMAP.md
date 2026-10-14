@@ -28,6 +28,7 @@
 - [x] Jalankan backend Go dengan PostgreSQL lokal/container, apply migration, lalu validasi smoke test endpoint MVP.
 - [x] Tambahkan integration test database untuk repository dan workflow utama.
 - [x] Perkuat resource-scoped authorization untuk project, task, comment, attachment, team, dan user/admin flow.
+- [x] Stabilkan `PATCH /api/v1/tasks/{task}` untuk edit task dan perpindahan satu task berdasarkan `position`, termasuk otorisasi per field dan test database.
 - [ ] Perkuat security hardening: safe user response, refresh token hash/rotation, rate limit auth, dan upload MIME/size validation.
 - [ ] Stabilkan workflow user/profile, team, dan project/sidebar untuk kebutuhan navigasi frontend.
 - [ ] Stabilkan workflow task board/list/detail, comment, dan attachment upload/download.
@@ -53,7 +54,7 @@
 ## P1
 
 - [ ] Implement activity log.
-- [ ] Implement reorder atomik.
+- [ ] Implement `POST /api/v1/tasks/reorder` untuk reorder batch atomik sesuai API contract.
 - [ ] Implement unified assignment.
 - [ ] Implement checklist.
 

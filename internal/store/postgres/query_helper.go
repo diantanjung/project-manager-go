@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"project-manager-go/internal/domain"
@@ -47,7 +48,8 @@ type updateBuilder struct {
 }
 
 func (u *updateBuilder) add(column string, value any) {
-	if value == nil {
+	v := reflect.ValueOf(value)
+	if !v.IsValid() || (v.Kind() == reflect.Pointer && v.IsNil()) {
 		return
 	}
 	u.values = append(u.values, value)
