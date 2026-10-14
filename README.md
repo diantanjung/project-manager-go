@@ -163,8 +163,8 @@ The same API routes are mounted under both `/api` and `/api/v1`.
 | Teams | `/teams`, `/teams/:id`, `/teams/:id/members` |
 | Projects | `/projects`, `/projects/:id`, `/projects/:id/tasks`, `/projects/:id/teams` |
 | Project teams | `/project-teams`, `/project-teams/projects/:projectId/teams` |
-| Tasks | `/tasks`, `/tasks/:id`, `/tasks/:id/status` |
-| Task assignments | `/task-assignments`, `/task-assignments/tasks/:taskId/assignments` |
+| Tasks | `/tasks` (list or board), `/tasks/reorder`, `/tasks/:id`, `/tasks/:id/status`, `/tasks/:id/activity` |
+| Task assignments | `/tasks/:id/assignments`, `/tasks/:id/assignments/:userId`; legacy `/task-assignments` routes |
 | Comments | `/tasks/:id/comments`, `/comments/:id` |
 | Attachments | `/tasks/:id/attachments`, `/attachments/:id` |
 | Uploads | `/upload`, `/uploads/*` |

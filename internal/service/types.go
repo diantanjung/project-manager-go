@@ -73,26 +73,29 @@ type ProjectTeamInput struct {
 }
 
 type TaskInput struct {
-	Title       string               `json:"title" binding:"required,min=2"`
-	Description *string              `json:"description"`
-	Status      *domain.TaskStatus   `json:"status" binding:"omitempty,oneof=backlog todo in_progress review done"`
-	Priority    *domain.TaskPriority `json:"priority" binding:"omitempty,oneof=low medium high urgent"`
-	ProjectID   int                  `json:"projectId" binding:"required,gt=0"`
-	CreatorID   int                  `json:"-"`
-	AssigneeID  int                  `json:"assigneeId" binding:"required,gt=0"`
-	DueDate     *string              `json:"dueDate" binding:"omitempty,datetime=2006-01-02"`
-	Position    *int                 `json:"position" binding:"omitempty,gte=0"`
+	Title           string               `json:"title" binding:"required,min=2"`
+	Description     *string              `json:"description"`
+	Status          *domain.TaskStatus   `json:"status" binding:"omitempty,oneof=backlog todo in_progress review done"`
+	Priority        *domain.TaskPriority `json:"priority" binding:"omitempty,oneof=low medium high urgent"`
+	ProjectID       int                  `json:"projectId" binding:"required,gt=0"`
+	CreatorID       int                  `json:"-"`
+	AssigneeID      int                  `json:"assigneeId" binding:"omitempty,gt=0"`
+	DueDate         *string              `json:"dueDate" binding:"omitempty,datetime=2006-01-02"`
+	Position        *int                 `json:"position" binding:"omitempty,gte=0"`
+	EstimateMinutes *int                 `json:"estimateMinutes" binding:"omitempty,gte=0"`
 }
 
 type TaskPatchInput struct {
-	Title       *string              `json:"title" binding:"omitempty,min=2"`
-	Description *string              `json:"description"`
-	Status      *domain.TaskStatus   `json:"status" binding:"omitempty,oneof=backlog todo in_progress review done"`
-	Priority    *domain.TaskPriority `json:"priority" binding:"omitempty,oneof=low medium high urgent"`
-	ProjectID   *int                 `json:"projectId" binding:"omitempty,gt=0"`
-	AssigneeID  *int                 `json:"assigneeId" binding:"omitempty,gt=0"`
-	DueDate     *string              `json:"dueDate" binding:"omitempty,datetime=2006-01-02"`
-	Position    *int                 `json:"position" binding:"omitempty,gte=0"`
+	Title           *string              `json:"title" binding:"omitempty,min=2"`
+	Description     *string              `json:"description"`
+	Status          *domain.TaskStatus   `json:"status" binding:"omitempty,oneof=backlog todo in_progress review done"`
+	Priority        *domain.TaskPriority `json:"priority" binding:"omitempty,oneof=low medium high urgent"`
+	ProjectID       *int                 `json:"projectId" binding:"omitempty,gt=0"`
+	AssigneeID      *int                 `json:"assigneeId" binding:"omitempty,gt=0"`
+	ClearAssignee   bool                 `json:"-"`
+	DueDate         *string              `json:"dueDate" binding:"omitempty,datetime=2006-01-02"`
+	Position        *int                 `json:"position" binding:"omitempty,gte=0"`
+	EstimateMinutes *int                 `json:"estimateMinutes" binding:"omitempty,gte=0"`
 }
 
 type TaskFilter struct {
@@ -102,8 +105,23 @@ type TaskFilter struct {
 	Status     *domain.TaskStatus
 	Priority   *domain.TaskPriority
 	AssigneeID *int
+	DueBefore  *string
+	DueAfter   *string
+	Board      bool
 	SortBy     string
 	Order      string
+}
+
+type TaskMove struct {
+	TaskID   int               `json:"taskId" binding:"required,gt=0"`
+	Status   domain.TaskStatus `json:"status" binding:"required,oneof=backlog todo in_progress review done"`
+	Position int               `json:"position" binding:"gte=0"`
+}
+
+type TaskReorderInput struct {
+	ProjectID int        `json:"projectId" binding:"required,gt=0"`
+	Moves     []TaskMove `json:"moves" binding:"required,min=1,dive"`
+	Version   string     `json:"version"`
 }
 
 type TaskAssignmentInput struct {

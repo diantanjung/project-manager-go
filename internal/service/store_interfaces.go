@@ -78,6 +78,8 @@ type TaskStore interface {
 	GetTaskByID(ctx context.Context, user domain.AuthUser, id int) (domain.Task, error)
 	UpdateTask(ctx context.Context, user domain.AuthUser, id int, input TaskPatchInput) (domain.Task, error)
 	DeleteTask(ctx context.Context, user domain.AuthUser, id int) (domain.Task, error)
+	ReorderTasks(ctx context.Context, user domain.AuthUser, input TaskReorderInput) ([]domain.Task, error)
+	ListTaskActivity(ctx context.Context, user domain.AuthUser, id int) ([]domain.ActivityLog, error)
 }
 
 type TaskAssignmentStore interface {
@@ -85,6 +87,7 @@ type TaskAssignmentStore interface {
 	ListTaskAssignments(ctx context.Context, taskID int) ([]domain.TaskAssignment, error)
 	GetTaskAssignmentByID(ctx context.Context, id int) (domain.TaskAssignment, error)
 	RemoveTaskAssignment(ctx context.Context, id int) (domain.TaskAssignment, error)
+	RemoveTaskAssignmentByUser(ctx context.Context, taskID int, userID int) (domain.TaskAssignment, error)
 }
 
 type CommentStore interface {

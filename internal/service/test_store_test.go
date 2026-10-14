@@ -23,6 +23,7 @@ type memoryStore struct {
 	canAccessTask    bool
 	task             domain.Task
 	taskUpdates      []TaskPatchInput
+	taskReorders     []TaskReorderInput
 }
 
 func newMemoryStore(t *testing.T) *memoryStore {
@@ -221,6 +222,10 @@ func (m *memoryStore) RemoveTeamFromProject(context.Context, domain.AuthUser, in
 }
 
 func (m *memoryStore) CreateTask(_ context.Context, input TaskInput) (domain.Task, error) {
+	var assigneeID *int
+	if input.AssigneeID != 0 {
+		assigneeID = &input.AssigneeID
+	}
 	return domain.Task{
 		ID:         1,
 		Title:      input.Title,
@@ -228,7 +233,7 @@ func (m *memoryStore) CreateTask(_ context.Context, input TaskInput) (domain.Tas
 		Priority:   input.Priority,
 		ProjectID:  input.ProjectID,
 		CreatorID:  input.CreatorID,
-		AssigneeID: input.AssigneeID,
+		AssigneeID: assigneeID,
 	}, nil
 }
 
@@ -252,6 +257,15 @@ func (m *memoryStore) DeleteTask(context.Context, domain.AuthUser, int) (domain.
 	return domain.Task{}, nil
 }
 
+func (m *memoryStore) ReorderTasks(_ context.Context, _ domain.AuthUser, input TaskReorderInput) ([]domain.Task, error) {
+	m.taskReorders = append(m.taskReorders, input)
+	return []domain.Task{}, nil
+}
+
+func (m *memoryStore) ListTaskActivity(context.Context, domain.AuthUser, int) ([]domain.ActivityLog, error) {
+	return []domain.ActivityLog{}, nil
+}
+
 func (m *memoryStore) AssignUserToTask(context.Context, TaskAssignmentInput) (domain.TaskAssignment, bool, error) {
 	return domain.TaskAssignment{ID: 1}, false, nil
 }
@@ -265,6 +279,10 @@ func (m *memoryStore) GetTaskAssignmentByID(context.Context, int) (domain.TaskAs
 }
 
 func (m *memoryStore) RemoveTaskAssignment(context.Context, int) (domain.TaskAssignment, error) {
+	return domain.TaskAssignment{}, nil
+}
+
+func (m *memoryStore) RemoveTaskAssignmentByUser(context.Context, int, int) (domain.TaskAssignment, error) {
 	return domain.TaskAssignment{}, nil
 }
 

@@ -144,8 +144,8 @@ func (s *Store) dashboardTasks(ctx context.Context, user domain.AuthUser, orderB
 	}
 	query := fmt.Sprintf(`
 		SELECT ta.id, ta.title, ta.description, ta.status, ta.priority, ta.project_id, p.name AS project_name,
-			ta.creator_id, COALESCE(ta.assignee_id, 0) AS assignee_id, u.name AS assignee_name, NULL::text AS assignee_avatar_url,
-			ta.due_date::text AS due_date, ta.position, ta.created_at, ta.updated_at
+			ta.creator_id, ta.assignee_id, u.name AS assignee_name, NULL::text AS assignee_avatar_url,
+			ta.due_date::text AS due_date, ta.position, ta.estimate_minutes, ta.completed_at, ta.created_at, ta.updated_at
 		FROM tasks ta
 		LEFT JOIN projects p ON p.id = ta.project_id
 		LEFT JOIN users u ON u.id = ta.assignee_id
