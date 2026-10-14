@@ -109,23 +109,29 @@ func TestStoreIntegrationRepositoryRoundTrip(t *testing.T) {
 	status := domain.TaskStatusTodo
 	priority := domain.TaskPriorityHigh
 	position := 1
+	estimateMinutes := 240
 	dueDate := "2026-09-05"
 	task, err := store.CreateTask(ctx, service.TaskInput{
-		Title:       "Integration Task " + suffix,
-		Description: &description,
-		Status:      &status,
-		Priority:    &priority,
-		ProjectID:   project.ID,
-		CreatorID:   manager.ID,
-		AssigneeID:  member.ID,
-		DueDate:     &dueDate,
-		Position:    &position,
+		Title:           "Integration Task " + suffix,
+		Description:     &description,
+		Status:          &status,
+		Priority:        &priority,
+		ProjectID:       project.ID,
+		CreatorID:       manager.ID,
+		AssigneeID:      member.ID,
+		DueDate:         &dueDate,
+		Position:        &position,
+		EstimateMinutes: &estimateMinutes,
 	})
 	if err != nil {
 		t.Fatalf("CreateTask() error = %v", err)
 	}
-	if task.Status != domain.TaskStatusTodo || task.ProjectID != project.ID {
+	if task.Status != domain.TaskStatusTodo || task.ProjectID != project.ID || task.EstimateMinutes == nil || *task.EstimateMinutes != estimateMinutes {
 		t.Fatalf("task = %#v, want todo task in project %d", task, project.ID)
+	}
+	activity, err := store.ListTaskActivity(ctx, managerActor, task.ID)
+	if err != nil || len(activity) != 1 || activity[0].Action != "created" {
+		t.Fatalf("task activity after create = %#v, error = %v", activity, err)
 	}
 	firstPosition := 0
 	first, err := store.CreateTask(ctx, service.TaskInput{
@@ -162,6 +168,10 @@ func TestStoreIntegrationRepositoryRoundTrip(t *testing.T) {
 	if edited.Title != renamedTitle || edited.Status != status || edited.Position == nil || *edited.Position != 0 {
 		t.Fatalf("task edit changed unrelated fields: %#v", edited)
 	}
+	activity, err = store.ListTaskActivity(ctx, managerActor, task.ID)
+	if err != nil || len(activity) != 3 || activity[0].Action != "updated" || activity[0].Before["title"] != task.Title || activity[0].After["title"] != renamedTitle {
+		t.Fatalf("task activity after edit = %#v, error = %v", activity, err)
+	}
 	ordered, err := store.ListTasks(ctx, managerActor, service.TaskFilter{
 		PageFilter: service.PageFilter{Page: 1, Limit: 10}, ProjectID: &project.ID,
 		Status: &status, SortBy: "position", Order: "asc",
@@ -171,6 +181,12 @@ func TestStoreIntegrationRepositoryRoundTrip(t *testing.T) {
 	}
 	if len(ordered.Data) != 3 || ordered.Data[0].ID != task.ID || ordered.Data[1].ID != first.ID || ordered.Data[2].ID != last.ID {
 		t.Fatalf("task order after reorder = %#v, want [%d %d %d]", ordered.Data, task.ID, first.ID, last.ID)
+	}
+	board, err := store.ListTasks(ctx, managerActor, service.TaskFilter{
+		ProjectID: &project.ID, DueAfter: &dueDate, DueBefore: &dueDate, Board: true,
+	})
+	if err != nil || len(board.Data) != 1 || board.Data[0].ID != task.ID {
+		t.Fatalf("filtered board = %#v, error = %v", board.Data, err)
 	}
 	done := domain.TaskStatusDone
 	if _, err := store.UpdateTask(ctx, managerActor, task.ID, service.TaskPatchInput{Status: &done, Position: &zero}); err != nil {
@@ -199,6 +215,19 @@ func TestStoreIntegrationRepositoryRoundTrip(t *testing.T) {
 	if len(doneTasks.Data) != 2 || doneTasks.Data[0].ID != task.ID || doneTasks.Data[1].ID != first.ID || *doneTasks.Data[1].Position != 1 {
 		t.Fatalf("destination order after status-only move = %#v", doneTasks.Data)
 	}
+	if doneTasks.Data[0].CompletedAt == nil || doneTasks.Data[1].CompletedAt == nil {
+		t.Fatalf("done tasks missing completedAt: %#v", doneTasks.Data)
+	}
+	moved, err := store.ReorderTasks(ctx, managerActor, service.TaskReorderInput{
+		ProjectID: project.ID,
+		Moves: []service.TaskMove{
+			{TaskID: last.ID, Status: domain.TaskStatusDone, Position: 0},
+			{TaskID: first.ID, Status: domain.TaskStatusTodo, Position: 0},
+		},
+	})
+	if err != nil || len(moved) != 2 || moved[0].Status != domain.TaskStatusDone || moved[0].Position == nil || *moved[0].Position != 0 || moved[1].Status != domain.TaskStatusTodo || moved[1].Position == nil || *moved[1].Position != 0 {
+		t.Fatalf("batch reorder = %#v, error = %v", moved, err)
+	}
 
 	if _, exists, err := store.AssignUserToTask(ctx, service.TaskAssignmentInput{
 		TaskID: task.ID,
@@ -211,6 +240,13 @@ func TestStoreIntegrationRepositoryRoundTrip(t *testing.T) {
 		UserID: member.ID,
 	}); err != nil || !exists {
 		t.Fatalf("AssignUserToTask(duplicate) exists=%t error=%v, want existing assignment", exists, err)
+	}
+	if _, err := store.RemoveTaskAssignmentByUser(ctx, task.ID, member.ID); err != nil {
+		t.Fatalf("RemoveTaskAssignmentByUser() error = %v", err)
+	}
+	unassignedTask, err := store.UpdateTask(ctx, managerActor, task.ID, service.TaskPatchInput{ClearAssignee: true})
+	if err != nil || unassignedTask.AssigneeID != nil {
+		t.Fatalf("UpdateTask(clear assignee) = %#v, error = %v", unassignedTask, err)
 	}
 
 	comment, err := store.CreateComment(ctx, service.CommentInput{
@@ -261,6 +297,13 @@ func TestStoreIntegrationRepositoryRoundTrip(t *testing.T) {
 	}
 	if len(notifications) != 1 || notifications[0].ID != notification.ID {
 		t.Fatalf("notifications = %#v, want created notification", notifications)
+	}
+	unassigned, err := store.CreateTask(ctx, service.TaskInput{
+		Title: "Unassigned task " + suffix, Status: &status, Priority: &priority,
+		ProjectID: project.ID, CreatorID: manager.ID,
+	})
+	if err != nil || unassigned.AssigneeID != nil {
+		t.Fatalf("unassigned task = %#v, error = %v", unassigned, err)
 	}
 }
 

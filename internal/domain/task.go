@@ -11,11 +11,13 @@ type Task struct {
 	ProjectID         int           `json:"projectId" db:"project_id"`
 	ProjectName       *string       `json:"projectName,omitempty" db:"project_name"`
 	CreatorID         int           `json:"creatorId" db:"creator_id"`
-	AssigneeID        int           `json:"assigneeId" db:"assignee_id"`
+	AssigneeID        *int          `json:"assigneeId" db:"assignee_id"`
 	AssigneeName      *string       `json:"assigneeName,omitempty" db:"assignee_name"`
 	AssigneeAvatarURL *string       `json:"assigneeAvatarUrl,omitempty" db:"assignee_avatar_url"`
 	DueDate           *string       `json:"dueDate" db:"due_date"`
 	Position          *int          `json:"position" db:"position"`
+	EstimateMinutes   *int          `json:"estimateMinutes" db:"estimate_minutes"`
+	CompletedAt       *time.Time    `json:"completedAt" db:"completed_at"`
 	CreatedAt         *time.Time    `json:"createdAt" db:"created_at"`
 	UpdatedAt         *time.Time    `json:"updatedAt" db:"updated_at"`
 	Comments          []CommentView `json:"comments,omitempty" db:"-"`

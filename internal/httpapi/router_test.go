@@ -237,6 +237,128 @@ func TestPatchTaskRouteAcceptsPositionZero(t *testing.T) {
 	}
 }
 
+func TestTaskBoardAndListResponses(t *testing.T) {
+	user := domain.User{ID: 7, Email: "manager@example.com", Role: domain.RoleProjectManager}
+	store := &taskManagementHTTPStore{authHTTPStore: authHTTPStore{user: user}}
+	tokens := tokenManagerForHTTP()
+	router := NewRouter(config.Config{NodeEnv: "test", FrontendURL: "http://localhost:5173"}, service.New(store, tokens))
+	token, err := tokens.GenerateAccessToken(user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []struct {
+		name           string
+		path           string
+		wantPagination bool
+	}{
+		{"board", "/api/v1/tasks?project_id=9&dueAfter=2026-10-01", false},
+		{"list", "/api/v1/tasks?projectId=9&page=1&limit=20", true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			req.Header.Set("Authorization", "Bearer "+token)
+			router.ServeHTTP(rec, req)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+			}
+			var body map[string]json.RawMessage
+			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+				t.Fatal(err)
+			}
+			_, hasPagination := body["pagination"]
+			if hasPagination != tt.wantPagination {
+				t.Fatalf("pagination present = %t, want %t: %s", hasPagination, tt.wantPagination, rec.Body.String())
+			}
+			if store.filter.ProjectID == nil || *store.filter.ProjectID != 9 || store.filter.Board == tt.wantPagination {
+				t.Fatalf("filter = %#v", store.filter)
+			}
+		})
+	}
+}
+
+func TestTaskManagementRoutes(t *testing.T) {
+	user := domain.User{ID: 7, Email: "manager@example.com", Role: domain.RoleProjectManager}
+	store := &taskManagementHTTPStore{authHTTPStore: authHTTPStore{user: user}}
+	tokens := tokenManagerForHTTP()
+	router := NewRouter(config.Config{NodeEnv: "test", FrontendURL: "http://localhost:5173"}, service.New(store, tokens))
+	token, err := tokens.GenerateAccessToken(user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []struct {
+		method string
+		path   string
+		body   string
+		want   int
+	}{
+		{http.MethodPost, "/api/v1/tasks/10/assignments", `{"userId":8}`, http.StatusCreated},
+		{http.MethodDelete, "/api/v1/tasks/10/assignments/8", "", http.StatusOK},
+		{http.MethodPost, "/api/v1/tasks/reorder", `{"projectId":9,"moves":[{"taskId":10,"status":"todo","position":0}]}`, http.StatusOK},
+		{http.MethodGet, "/api/v1/tasks/10/activity", "", http.StatusOK},
+	} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
+		router.ServeHTTP(rec, req)
+		if rec.Code != tt.want {
+			t.Fatalf("%s %s status = %d, want %d: %s", tt.method, tt.path, rec.Code, tt.want, rec.Body.String())
+		}
+	}
+}
+
+func TestCreateTaskAcceptsFrontendPayload(t *testing.T) {
+	user := domain.User{ID: 7, Email: "manager@example.com", Role: domain.RoleProjectManager}
+	store := &taskManagementHTTPStore{authHTTPStore: authHTTPStore{user: user}}
+	tokens := tokenManagerForHTTP()
+	router := NewRouter(config.Config{NodeEnv: "test", FrontendURL: "http://localhost:5173"}, service.New(store, tokens))
+	token, err := tokens.GenerateAccessToken(user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", strings.NewReader(`{
+		"title":"Backlog task", "description":"", "status":"backlog", "priority":"medium",
+		"project_id":9, "creator_id":7, "assignee_id":0,
+		"due_date":"2026-10-20T00:00:00.000Z"
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("POST /tasks status = %d, want 201: %s", rec.Code, rec.Body.String())
+	}
+	if store.createdTask.ProjectID != 9 || store.createdTask.CreatorID != 7 || store.createdTask.AssigneeID != 0 || store.createdTask.DueDate == nil || *store.createdTask.DueDate != "2026-10-20" {
+		t.Fatalf("created task input = %#v", store.createdTask)
+	}
+}
+
+func TestUpdateTaskAcceptsFrontendPayload(t *testing.T) {
+	user := domain.User{ID: 7, Email: "manager@example.com", Role: domain.RoleProjectManager}
+	store := &taskManagementHTTPStore{authHTTPStore: authHTTPStore{user: user}}
+	tokens := tokenManagerForHTTP()
+	router := NewRouter(config.Config{NodeEnv: "test", FrontendURL: "http://localhost:5173"}, service.New(store, tokens))
+	token, err := tokens.GenerateAccessToken(user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/tasks/10", strings.NewReader(`{
+		"title":"Edited backlog task", "project_id":9, "creator_id":7,
+		"assignee_id":0, "due_date":"2026-10-20T00:00:00.000Z"
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("PATCH /tasks/10 status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+	if store.taskPatch.Title == nil || *store.taskPatch.Title != "Edited backlog task" || store.taskPatch.DueDate == nil || *store.taskPatch.DueDate != "2026-10-20" || store.taskPatch.ProjectID != nil || store.taskPatch.AssigneeID != nil || !store.taskPatch.ClearAssignee {
+		t.Fatalf("task patch = %#v", store.taskPatch)
+	}
+}
+
 func tokenManagerForHTTP() auth.TokenManager {
 	return auth.TokenManager{
 		AccessSecret:  []byte("access"),
@@ -321,6 +443,56 @@ type dashboardHTTPStore struct {
 type taskPatchHTTPStore struct {
 	authHTTPStore
 	patch service.TaskPatchInput
+}
+
+type taskManagementHTTPStore struct {
+	authHTTPStore
+	filter      service.TaskFilter
+	createdTask service.TaskInput
+	taskPatch   service.TaskPatchInput
+}
+
+func (s *taskManagementHTTPStore) CreateTask(_ context.Context, input service.TaskInput) (domain.Task, error) {
+	s.createdTask = input
+	return domain.Task{ID: 10, Title: input.Title, Status: *input.Status, ProjectID: input.ProjectID}, nil
+}
+
+func (s *taskManagementHTTPStore) UpdateTask(_ context.Context, _ domain.AuthUser, id int, input service.TaskPatchInput) (domain.Task, error) {
+	s.taskPatch = input
+	return domain.Task{ID: id, Title: *input.Title}, nil
+}
+
+func (s *taskManagementHTTPStore) ListTasks(_ context.Context, _ domain.AuthUser, filter service.TaskFilter) (domain.Paginated[domain.Task], error) {
+	s.filter = filter
+	return domain.Paginated[domain.Task]{Data: []domain.Task{{ID: 10}}, Pagination: domain.Pagination{Page: 1, Limit: 20, TotalItems: 1, TotalPages: 1}}, nil
+}
+
+func (s *taskManagementHTTPStore) GetProjectByID(_ context.Context, _ domain.AuthUser, id int) (domain.Project, error) {
+	return domain.Project{ID: id}, nil
+}
+
+func (s *taskManagementHTTPStore) GetTaskByID(_ context.Context, _ domain.AuthUser, id int) (domain.Task, error) {
+	return domain.Task{ID: id}, nil
+}
+
+func (s *taskManagementHTTPStore) AssignUserToTask(_ context.Context, input service.TaskAssignmentInput) (domain.TaskAssignment, bool, error) {
+	return domain.TaskAssignment{ID: 1, TaskID: input.TaskID, UserID: input.UserID}, false, nil
+}
+
+func (s *taskManagementHTTPStore) CreateNotification(_ context.Context, _ service.NotificationInput) (domain.Notification, error) {
+	return domain.Notification{}, nil
+}
+
+func (s *taskManagementHTTPStore) RemoveTaskAssignmentByUser(_ context.Context, taskID, userID int) (domain.TaskAssignment, error) {
+	return domain.TaskAssignment{ID: 1, TaskID: taskID, UserID: userID}, nil
+}
+
+func (s *taskManagementHTTPStore) ReorderTasks(_ context.Context, _ domain.AuthUser, _ service.TaskReorderInput) ([]domain.Task, error) {
+	return []domain.Task{{ID: 10}}, nil
+}
+
+func (s *taskManagementHTTPStore) ListTaskActivity(_ context.Context, _ domain.AuthUser, _ int) ([]domain.ActivityLog, error) {
+	return []domain.ActivityLog{}, nil
 }
 
 func (s *taskPatchHTTPStore) GetTaskByID(context.Context, domain.AuthUser, int) (domain.Task, error) {

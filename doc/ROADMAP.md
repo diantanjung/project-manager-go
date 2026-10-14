@@ -54,7 +54,7 @@
 ## P1
 
 - [ ] Implement activity log.
-- [ ] Implement `POST /api/v1/tasks/reorder` untuk reorder batch atomik sesuai API contract.
+- [x] Implement `POST /api/v1/tasks/reorder` untuk reorder batch atomik sesuai API contract.
 - [ ] Implement unified assignment.
 - [ ] Implement checklist.
 
