@@ -21,6 +21,8 @@ type memoryStore struct {
 	dashboardUser    domain.AuthUser
 	canCreateProject bool
 	canAccessTask    bool
+	task             domain.Task
+	taskUpdates      []TaskPatchInput
 }
 
 func newMemoryStore(t *testing.T) *memoryStore {
@@ -238,11 +240,12 @@ func (m *memoryStore) GetTaskByID(context.Context, domain.AuthUser, int) (domain
 	if !m.canAccessTask {
 		return domain.Task{}, domain.ErrNotFound
 	}
-	return domain.Task{}, nil
+	return m.task, nil
 }
 
-func (m *memoryStore) UpdateTask(context.Context, domain.AuthUser, int, TaskPatchInput) (domain.Task, error) {
-	return domain.Task{}, nil
+func (m *memoryStore) UpdateTask(_ context.Context, _ domain.AuthUser, _ int, input TaskPatchInput) (domain.Task, error) {
+	m.taskUpdates = append(m.taskUpdates, input)
+	return m.task, nil
 }
 
 func (m *memoryStore) DeleteTask(context.Context, domain.AuthUser, int) (domain.Task, error) {

@@ -3,6 +3,9 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"slices"
+
+	"github.com/jmoiron/sqlx"
 
 	"project-manager-go/internal/domain"
 	"project-manager-go/internal/service"
@@ -43,7 +46,7 @@ func (s *Store) ListTasks(ctx context.Context, user domain.AuthUser, filter serv
 
 	sortBy := allow(filter.SortBy, "ta.created_at", map[string]string{
 		"title": "ta.title", "createdAt": "ta.created_at", "updatedAt": "ta.updated_at",
-		"dueDate": "ta.due_date", "priority": "ta.priority",
+		"dueDate": "ta.due_date", "priority": "ta.priority", "position": "ta.position",
 	})
 	args := append(where.values, filter.Limit, offset(filter.PageFilter))
 	query := fmt.Sprintf(`
@@ -54,7 +57,7 @@ func (s *Store) ListTasks(ctx context.Context, user domain.AuthUser, filter serv
 		LEFT JOIN projects p ON p.id = ta.project_id
 		LEFT JOIN users u ON u.id = ta.assignee_id
 		%s
-		ORDER BY %s %s LIMIT $%d OFFSET $%d
+		ORDER BY %s %s NULLS LAST, ta.id ASC LIMIT $%d OFFSET $%d
 	`, where.clause(), sortBy, order(filter.Order), len(args)-1, len(args))
 	return selectPage[domain.Task](s, ctx, query, filter.PageFilter, total, args...)
 }
@@ -89,6 +92,13 @@ func (s *Store) GetTaskByID(ctx context.Context, user domain.AuthUser, id int) (
 }
 
 func (s *Store) UpdateTask(ctx context.Context, user domain.AuthUser, id int, input service.TaskPatchInput) (domain.Task, error) {
+	if input.Position != nil || input.Status != nil {
+		return s.reorderTask(ctx, user, id, input)
+	}
+	return s.updateTaskFields(ctx, user, id, input)
+}
+
+func (s *Store) updateTaskFields(ctx context.Context, user domain.AuthUser, id int, input service.TaskPatchInput) (domain.Task, error) {
 	where := taskWhere(user)
 	where.add("ta.id = $%d", id)
 	sets := updateBuilder{values: append([]any{}, where.values...)}
@@ -110,6 +120,113 @@ func (s *Store) UpdateTask(ctx context.Context, user domain.AuthUser, id int, in
 			ta.creator_id, ta.assignee_id, NULL::text AS assignee_name, NULL::text AS assignee_avatar_url, ta.due_date::text AS due_date, ta.position, ta.created_at, ta.updated_at
 	`, sets.clause(), where.clause())
 	return getOne[domain.Task](s, ctx, query, sets.values...)
+}
+
+func (s *Store) reorderTask(ctx context.Context, user domain.AuthUser, id int, input service.TaskPatchInput) (domain.Task, error) {
+	switch db := s.db.(type) {
+	case *sqlx.DB:
+		tx, err := db.BeginTxx(ctx, nil)
+		if err != nil {
+			return domain.Task{}, err
+		}
+		defer tx.Rollback()
+		task, err := (&Store{db: tx}).reorderTaskInTransaction(ctx, user, id, input)
+		if err != nil {
+			return domain.Task{}, err
+		}
+		if err := tx.Commit(); err != nil {
+			return domain.Task{}, err
+		}
+		return task, nil
+	case *sqlx.Tx:
+		// Integration tests already run inside a transaction.
+		if _, err := db.ExecContext(ctx, "SAVEPOINT task_reorder"); err != nil {
+			return domain.Task{}, err
+		}
+		task, err := s.reorderTaskInTransaction(ctx, user, id, input)
+		if err != nil {
+			_, _ = db.ExecContext(ctx, "ROLLBACK TO SAVEPOINT task_reorder")
+			return domain.Task{}, err
+		}
+		_, err = db.ExecContext(ctx, "RELEASE SAVEPOINT task_reorder")
+		return task, err
+	default:
+		return domain.Task{}, fmt.Errorf("task reorder requires a SQL transaction")
+	}
+}
+
+func (s *Store) reorderTaskInTransaction(ctx context.Context, user domain.AuthUser, id int, input service.TaskPatchInput) (domain.Task, error) {
+	current, err := s.GetTaskByID(ctx, user, id)
+	if err != nil {
+		return domain.Task{}, err
+	}
+	// Project locks serialize concurrent moves within the same project.
+	var lockedID int
+	if err := s.db.GetContext(ctx, &lockedID, "SELECT id FROM projects WHERE id = $1 FOR UPDATE", current.ProjectID); err != nil {
+		return domain.Task{}, notFound(err)
+	}
+	current, err = s.GetTaskByID(ctx, user, id)
+	if err != nil {
+		return domain.Task{}, err
+	}
+	targetStatus := current.Status
+	if input.Status != nil {
+		targetStatus = *input.Status
+	}
+	if input.Position == nil && targetStatus == current.Status {
+		return s.updateTaskFields(ctx, user, id, input)
+	}
+	source, err := s.taskIDsForOrder(ctx, current.ProjectID, current.Status)
+	if err != nil {
+		return domain.Task{}, err
+	}
+	source = removeTaskID(source, id)
+	if current.Status == targetStatus {
+		return s.saveTaskOrder(ctx, user, id, input, source)
+	}
+	if err := s.setTaskPositions(ctx, source); err != nil {
+		return domain.Task{}, err
+	}
+	destination, err := s.taskIDsForOrder(ctx, current.ProjectID, targetStatus)
+	if err != nil {
+		return domain.Task{}, err
+	}
+	return s.saveTaskOrder(ctx, user, id, input, removeTaskID(destination, id))
+}
+
+func (s *Store) taskIDsForOrder(ctx context.Context, projectID int, status domain.TaskStatus) ([]int, error) {
+	ids := []int{}
+	err := s.db.SelectContext(ctx, &ids, `
+		SELECT id FROM tasks WHERE project_id = $1 AND status = $2
+		ORDER BY position ASC NULLS LAST, id ASC
+	`, projectID, status)
+	return ids, err
+}
+
+func removeTaskID(ids []int, id int) []int {
+	return slices.DeleteFunc(ids, func(candidate int) bool { return candidate == id })
+}
+
+func (s *Store) saveTaskOrder(ctx context.Context, user domain.AuthUser, id int, input service.TaskPatchInput, ids []int) (domain.Task, error) {
+	position := len(ids)
+	if input.Position != nil {
+		position = min(*input.Position, len(ids))
+	}
+	ids = slices.Insert(ids, position, id)
+	if err := s.setTaskPositions(ctx, ids); err != nil {
+		return domain.Task{}, err
+	}
+	input.Position = &position
+	return s.updateTaskFields(ctx, user, id, input)
+}
+
+func (s *Store) setTaskPositions(ctx context.Context, ids []int) error {
+	for position, id := range ids {
+		if _, err := s.db.ExecContext(ctx, "UPDATE tasks SET position = $1 WHERE id = $2 AND position IS DISTINCT FROM $1", position, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Store) DeleteTask(ctx context.Context, user domain.AuthUser, id int) (domain.Task, error) {
