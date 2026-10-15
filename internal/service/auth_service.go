@@ -27,20 +27,25 @@ func (s *Service) CurrentUser(ctx context.Context, authUser domain.AuthUser) (do
 	return user, nil
 }
 
-func (s *Service) Register(ctx context.Context, input CreateUserInput) (domain.User, error) {
-	if err := validateUserRole(input.Role); err != nil {
-		return domain.User{}, err
+func (s *Service) Register(ctx context.Context, input CreateUserInput) (AuthResult, error) {
+	if input.Role != nil && *input.Role != domain.RoleTeamMember {
+		return AuthResult{}, validationError("Role cannot be set during registration")
 	}
+	input.Role = nil
 
 	_, err := s.store.GetUserByEmail(ctx, input.Email)
 	if err == nil {
-		return domain.User{}, domain.NewError(domain.ErrDuplicate, "User already exists")
+		return AuthResult{}, domain.NewError(domain.ErrDuplicate, "User already exists")
 	}
 	if !errors.Is(err, domain.ErrNotFound) {
-		return domain.User{}, fmt.Errorf("checking existing user: %w", err)
+		return AuthResult{}, fmt.Errorf("checking existing user: %w", err)
 	}
 
-	return s.CreateUser(ctx, input)
+	user, err := s.CreateUser(ctx, input)
+	if err != nil {
+		return AuthResult{}, err
+	}
+	return s.issueSession(ctx, user)
 }
 
 func (s *Service) Login(ctx context.Context, input LoginInput) (AuthResult, error) {
@@ -56,6 +61,10 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (AuthResult, erro
 		return AuthResult{}, domain.NewError(domain.ErrInvalidCredential, "Invalid credentials")
 	}
 
+	return s.issueSession(ctx, user)
+}
+
+func (s *Service) issueSession(ctx context.Context, user domain.User) (AuthResult, error) {
 	accessToken, err := s.tokens.GenerateAccessToken(user)
 	if err != nil {
 		return AuthResult{}, err

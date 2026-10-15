@@ -444,14 +444,14 @@ func TestStoreIntegrationServiceWorkflow(t *testing.T) {
 	suffix := uniqueSuffix()
 
 	adminRole := domain.RoleAdmin
-	admin, err := svc.Register(ctx, service.CreateUserInput{
+	admin, err := svc.CreateUser(ctx, service.CreateUserInput{
 		Name:     "WorkflowAdmin" + suffix,
 		Email:    "workflow-admin-" + suffix + "@example.com",
 		Password: "password123",
 		Role:     &adminRole,
 	})
 	if err != nil {
-		t.Fatalf("Register(admin) error = %v", err)
+		t.Fatalf("CreateUser(admin) error = %v", err)
 	}
 	login, err := svc.Login(ctx, service.LoginInput{
 		Email:    admin.Email,

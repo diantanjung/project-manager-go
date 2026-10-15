@@ -105,6 +105,58 @@ func TestRefreshAndLogoutWithoutCookie(t *testing.T) {
 	}
 }
 
+func TestRegisterCreatesMemberSessionAndRejectsPrivilegedRole(t *testing.T) {
+	store := &authSessionStore{tokens: make(map[string]bool)}
+	tokens := tokenManagerForHTTP()
+	router := NewRouter(
+		config.Config{NodeEnv: "test", FrontendURL: "http://localhost:5173", JWTRefreshExpiresIn: 7 * 24 * time.Hour},
+		service.New(store, tokens),
+	)
+	request := func(body string) *httptest.ResponseRecorder {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(rec, req)
+		return rec
+	}
+
+	rejected := request(`{"name":"Admin","email":"admin@example.com","password":"secret123","role":"admin"}`)
+	if rejected.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("privileged register status = %d, want 422: %s", rejected.Code, rejected.Body.String())
+	}
+	if store.user.ID != 0 {
+		t.Fatal("privileged registration created a user")
+	}
+
+	registered := request(`{"name":"Member","email":"member@example.com","password":"secret123"}`)
+	if registered.Code != http.StatusCreated {
+		t.Fatalf("register status = %d, want 201: %s", registered.Code, registered.Body.String())
+	}
+	var response struct {
+		Data struct {
+			User         domain.User `json:"user"`
+			AccessToken  string      `json:"accessToken"`
+			RefreshToken string      `json:"refreshToken"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(registered.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Data.User.Role != domain.RoleTeamMember || response.Data.AccessToken == "" || response.Data.RefreshToken == "" {
+		t.Fatalf("invalid register response: %+v", response.Data)
+	}
+	if _, err := tokens.VerifyAccessToken(response.Data.AccessToken); err != nil {
+		t.Fatalf("access token is invalid: %v", err)
+	}
+	if !store.tokens[auth.HashRefreshToken(response.Data.RefreshToken)] {
+		t.Fatal("refresh token was not persisted as a hash")
+	}
+	if cookies := registered.Result().Cookies(); len(cookies) == 0 || !cookies[0].HttpOnly || cookies[0].Value != response.Data.RefreshToken {
+		t.Fatalf("register cookie = %#v", cookies)
+	}
+}
+
 func TestAuthMeRoutesReturnCurrentUser(t *testing.T) {
 	tokenManager := tokenManagerForHTTP()
 	user := domain.User{
@@ -386,6 +438,11 @@ type authSessionStore struct {
 	service.Store
 	user   domain.User
 	tokens map[string]bool
+}
+
+func (s *authSessionStore) CreateUser(_ context.Context, input service.CreateUserInput) (domain.User, error) {
+	s.user = domain.User{ID: 7, Name: input.Name, Email: input.Email, Role: domain.RoleTeamMember}
+	return s.user, nil
 }
 
 type authTokenResponse struct {
