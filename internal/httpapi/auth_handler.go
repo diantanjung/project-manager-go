@@ -14,8 +14,14 @@ func (h *Handler) register(c *gin.Context) {
 	if !bindJSON(c, &input) {
 		return
 	}
-	user, err := h.service.Register(c.Request.Context(), input)
-	respond(c, http.StatusCreated, user, err)
+	result, err := h.service.Register(c.Request.Context(), input)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	setRefreshCookie(c, h.cfg, result.RefreshToken)
+	c.Header("Cache-Control", "no-store")
+	respond(c, http.StatusCreated, gin.H{"user": result.User, "accessToken": result.AccessToken, "refreshToken": result.RefreshToken}, nil)
 }
 
 func (h *Handler) login(c *gin.Context) {
